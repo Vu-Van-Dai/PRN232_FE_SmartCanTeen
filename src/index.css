@@ -1,0 +1,194 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Canteen Management System Design System */
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 220 13% 13%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 220 13% 13%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 13% 13%;
+    
+    /* Primary - Emerald Green */
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary - Light Green */
+    --secondary: 142 52% 96%;
+    --secondary-foreground: 142 71% 35%;
+    
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    
+    --accent: 142 52% 96%;
+    --accent-foreground: 142 71% 35%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Warning - Orange */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    /* Success */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Info - Blue */
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+    
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 142 71% 45%;
+    
+    --radius: 0.5rem;
+    
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 13% 46%;
+    --sidebar-primary: 142 71% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 142 52% 96%;
+    --sidebar-accent-foreground: 142 71% 35%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 142 71% 45%;
+    
+    /* Chart Colors */
+    --chart-1: 142 71% 45%;
+    --chart-2: 262 52% 55%;
+    --chart-3: 217 91% 60%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
+  }
+
+  .dark {
+    --background: 220 13% 8%;
+    --foreground: 0 0% 95%;
+    
+    --card: 220 13% 12%;
+    --card-foreground: 0 0% 95%;
+    
+    --popover: 220 13% 12%;
+    --popover-foreground: 0 0% 95%;
+    
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 142 30% 15%;
+    --secondary-foreground: 142 71% 65%;
+    
+    --muted: 220 13% 18%;
+    --muted-foreground: 220 9% 60%;
+    
+    --accent: 142 30% 15%;
+    --accent-foreground: 142 71% 65%;
+    
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 95%;
+    
+    --warning: 38 92% 40%;
+    --warning-foreground: 0 0% 100%;
+    
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+    
+    --info: 217 91% 50%;
+    --info-foreground: 0 0% 100%;
+    
+    --border: 220 13% 20%;
+    --input: 220 13% 20%;
+    --ring: 142 71% 45%;
+    
+    --sidebar-background: 220 13% 10%;
+    --sidebar-foreground: 220 9% 70%;
+    --sidebar-primary: 142 71% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 142 30% 15%;
+    --sidebar-accent-foreground: 142 71% 65%;
+    --sidebar-border: 220 13% 20%;
+    --sidebar-ring: 142 71% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  .stat-card {
+    @apply bg-card rounded-xl p-5 border border-border shadow-sm;
+  }
+  
+  .stat-card-accent {
+    @apply stat-card border-l-4 border-l-primary;
+  }
+  
+  .badge-status {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .badge-success {
+    @apply badge-status bg-secondary text-secondary-foreground;
+  }
+  
+  .badge-warning {
+    @apply badge-status bg-warning/10 text-warning;
+  }
+  
+  .badge-danger {
+    @apply badge-status bg-destructive/10 text-destructive;
+  }
+  
+  .badge-info {
+    @apply badge-status bg-info/10 text-info;
+  }
+  
+  .menu-item-card {
+    @apply bg-card rounded-xl overflow-hidden border border-border shadow-sm transition-all hover:shadow-md;
+  }
+  
+  .order-card {
+    @apply bg-card rounded-lg p-4 border border-border;
+  }
+  
+  .order-card-urgent {
+    @apply order-card border-l-4 border-l-destructive;
+  }
+  
+  .order-card-preparing {
+    @apply order-card border-l-4 border-l-warning;
+  }
+  
+  .order-card-ready {
+    @apply order-card border-l-4 border-l-primary;
+  }
+  
+  .wallet-card {
+    @apply rounded-2xl p-6 text-white;
+    background: linear-gradient(135deg, hsl(150 20% 20%) 0%, hsl(160 25% 12%) 100%);
+  }
+  
+  .filter-chip {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border text-sm font-medium transition-colors;
+  }
+  
+  .filter-chip-active {
+    @apply filter-chip bg-primary text-primary-foreground border-primary;
+  }
+}
