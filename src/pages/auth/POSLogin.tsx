@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Wifi, Battery, HelpCircle, Settings, ChevronDown, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { hasAnyRole } from "@/lib/auth/role-routing";
+import { ApiError } from "@/lib/api/http";
+import * as shiftsApi from "@/lib/api/shifts";
 
 const campusLocations = [
   { id: 1, name: "North Campus Main Hall" },
@@ -13,14 +18,94 @@ const campusLocations = [
 
 export default function POSLogin() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const auth = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [selectedCampus, setSelectedCampus] = useState(campusLocations[0]);
   const [showCampusDropdown, setShowCampusDropdown] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/pos");
+
+    if (!email.trim() || !password) {
+      toast({
+        title: "Missing credentials",
+        description: "Please enter your email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const next = await auth.login(email.trim(), password);
+      const roles = next.user?.roles ?? [];
+
+      const allowed = hasAnyRole(roles, ["StaffPOS", "Staff", "StaffKitchen"]);
+      if (!allowed) {
+        auth.logout();
+        toast({
+          title: "Access denied",
+          description: "Tài khoản của bạn không thuộc nhóm nhân viên POS/Bếp. Vui lòng đăng nhập ở trang thường.",
+          variant: "destructive",
+        });
+        navigate("/auth/login", { replace: true });
+        return;
+      }
+
+      // NOTE: selectedCampus is currently UI-only; BE can add campus scoping later.
+      void selectedCampus;
+
+      const isPosStaff = hasAnyRole(roles, ["StaffPOS"]);
+      const isStaffGeneric = hasAnyRole(roles, ["Staff"]);
+      const isKitchenStaff = hasAnyRole(roles, ["StaffKitchen"]);
+
+      if (isPosStaff) {
+        try {
+          await shiftsApi.openShift();
+        } catch (err) {
+          const apiErr = err as ApiError;
+          const msg = apiErr?.message ?? "Không thể mở ca";
+
+          // If shift already active, allow entering POS.
+          if (!(apiErr instanceof ApiError && apiErr.status === 400 && /active shift/i.test(msg))) {
+            toast({
+              title: "Mở ca thất bại",
+              description: msg,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+
+        navigate("/pos", { replace: true });
+        return;
+      }
+
+      if (isKitchenStaff) {
+        navigate("/kitchen", { replace: true });
+        return;
+      }
+
+      if (isStaffGeneric) {
+        navigate("/pos", { replace: true });
+        return;
+      }
+
+      // Fallback
+      navigate("/pos", { replace: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Login failed";
+      toast({
+        title: "Login failed",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const currentTime = new Date().toLocaleTimeString("en-US", { 
@@ -138,9 +223,10 @@ export default function POSLogin() {
 
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-xl gap-2"
             >
-              Sign In
+              {isSubmitting ? "Signing In..." : "Sign In"}
               <ArrowRight className="w-5 h-5" />
             </Button>
           </form>

@@ -1,155 +1,155 @@
-import { useState } from "react";
-import { Trash2, Minus, Plus, Wallet, QrCode, Info, ArrowRight, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, CheckCircle, Info, Minus, Plus, QrCode, Trash2, Wallet } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
-interface CartItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  quantity: number;
-  image: string;
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+import { ordersApi, walletApi } from "@/lib/api";
+import { useCart } from "@/lib/cart/CartContext";
+import { cn } from "@/lib/utils";
+
+function formatVND(amount: number) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
 }
 
-const initialCartItems: CartItem[] = [
-  {
-    id: "1",
-    name: "Grilled Sandwich",
-    description: "Spicy chicken with cheddar cheese and signature sauce.",
-    price: 25000,
-    quantity: 1,
-    image: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=200&h=150&fit=crop"
-  },
-  {
-    id: "2",
-    name: "Orange Juice",
-    description: "Freshly squeezed, no sugar added.",
-    price: 15000,
-    quantity: 2,
-    image: "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=200&h=150&fit=crop"
-  },
-  {
-    id: "3",
-    name: "Fruit Salad",
-    description: "Seasonal fruits with yogurt dressing.",
-    price: 20000,
-    quantity: 1,
-    image: "https://images.unsplash.com/photo-1564093497595-593b96d80180?w=200&h=150&fit=crop"
-  },
-];
-
 export default function StudentCart() {
-  const [items, setItems] = useState<CartItem[]>(initialCartItems);
+  const navigate = useNavigate();
+  const cart = useCart();
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "vnpay">("wallet");
-  const walletBalance = 150000;
-  
-  const updateQuantity = (id: string, delta: number) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const newQty = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }));
-  };
-  
-  const removeItem = (id: string) => {
-    setItems(items.filter(item => item.id !== id));
-  };
-  
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const { data: walletMe } = useQuery({
+    queryKey: ["wallet", "me"],
+    queryFn: walletApi.getMyWallet,
+    staleTime: 15_000,
+    retry: false,
+  });
+
+  const subtotal = cart.subtotal;
   const vat = subtotal * 0.08;
   const total = subtotal + vat;
-  
-  const formatVND = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN').format(amount) + ' VND';
+
+  const itemLabel = useMemo(() => {
+    const n = cart.itemCount;
+    return n === 1 ? "(1 item)" : `(${n} items)`;
+  }, [cart.itemCount]);
+
+  const handlePlaceOrder = async () => {
+    if (cart.lines.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Add some items before placing an order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (paymentMethod === "vnpay") {
+      toast({
+        title: "VNPay not available",
+        description: "This payment method is not implemented for online orders in BE yet.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const res = await ordersApi.createOnlineOrder({
+        items: cart.lines.map((l) => ({ itemId: l.id, quantity: l.quantity })),
+      });
+
+      await ordersApi.payOnlineOrderWithWallet(res.orderId);
+      cart.clear();
+
+      toast({
+        title: "Order placed",
+        description: "Payment successful.",
+      });
+
+      navigate("/student/orders", { replace: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Checkout failed";
+      toast({
+        title: "Checkout failed",
+        description: msg,
+        variant: "destructive",
+      });
+    }
   };
-  
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="h-14 bg-card border-b border-border px-6 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">▶</span>
-          </div>
-          <span className="font-semibold">School Canteen</span>
-        </div>
-        
-        <nav className="flex items-center gap-6">
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">Home</Link>
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">Menu</Link>
-          <Link to="/cart" className="text-sm text-primary font-medium">Cart</Link>
-          <Link to="/orders" className="text-sm text-muted-foreground hover:text-foreground">Orders</Link>
-          <Link to="/wallet" className="text-sm text-muted-foreground hover:text-foreground">Wallet</Link>
-        </nav>
-        
-        <div className="flex items-center gap-3">
-          <button className="relative p-2">
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive rounded-full text-[10px] text-white flex items-center justify-center">2</span>
-            🔔
-          </button>
-          <div className="w-9 h-9 rounded-full bg-muted overflow-hidden">
-            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=50&h=50&fit=crop" alt="User" className="w-full h-full object-cover" />
-          </div>
-        </div>
-      </header>
-      
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link to="/" className="hover:text-foreground">Home</Link>
-          <span>/</span>
-          <span className="text-muted-foreground">Canteen</span>
-          <span>/</span>
-          <span className="text-foreground">Cart</span>
-        </div>
-        
-        {/* Title */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Shopping Cart</h1>
-          <span className="text-primary font-medium">({items.length} items)</span>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-4">
-            {items.map((item) => (
+    <div className="max-w-6xl mx-auto">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+        <Link to="/student/home" className="hover:text-foreground">
+          Home
+        </Link>
+        <span>/</span>
+        <Link to="/student/menu" className="hover:text-foreground">
+          Menu
+        </Link>
+        <span>/</span>
+        <span className="text-foreground">Cart</span>
+      </div>
+
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Shopping Cart</h1>
+        <span className="text-primary font-medium">{itemLabel}</span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          {cart.lines.length === 0 ? (
+            <div className="bg-card rounded-xl border border-border p-8 text-center">
+              <p className="font-medium mb-2">Your cart is empty</p>
+              <p className="text-sm text-muted-foreground mb-4">Go to the menu to add items.</p>
+              <Button asChild>
+                <Link to="/student/menu">Browse menu</Link>
+              </Button>
+            </div>
+          ) : (
+            cart.lines.map((item) => (
               <div key={item.id} className="bg-card rounded-xl border border-border p-4 flex gap-4">
                 <div className="w-24 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  {item.image ? (
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full" />
+                  )}
                 </div>
-                
+
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="font-semibold">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground">{item.description}</p>
+                      {!!item.description && (
+                        <p className="text-sm text-muted-foreground">{item.description}</p>
+                      )}
                     </div>
-                    <button 
-                      onClick={() => removeItem(item.id)}
+                    <button
+                      onClick={() => cart.removeItem(item.id)}
                       className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                      aria-label="Remove item"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  
+
                   <div className="flex items-center justify-between mt-3">
                     <p className="font-semibold">{formatVND(item.price)}</p>
-                    
+
                     <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => updateQuantity(item.id, -1)}
+                      <button
+                        onClick={() => cart.setQuantity(item.id, Math.max(1, item.quantity - 1))}
                         className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                        aria-label="Decrease quantity"
                       >
                         <Minus className="w-4 h-4" />
                       </button>
                       <span className="w-8 text-center font-medium">{item.quantity}</span>
-                      <button 
-                        onClick={() => updateQuantity(item.id, 1)}
+                      <button
+                        onClick={() => cart.setQuantity(item.id, item.quantity + 1)}
                         className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
+                        aria-label="Increase quantity"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
@@ -157,108 +157,98 @@ export default function StudentCart() {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-          
-          {/* Order Summary */}
-          <div className="space-y-4">
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="font-semibold text-lg mb-4">Order Summary</h3>
-              
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatVND(subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">VAT (8%)</span>
-                  <span>{formatVND(vat)}</span>
-                </div>
-                <div className="border-t border-border pt-3 flex justify-between">
-                  <span className="font-medium">Total</span>
-                  <span className="font-bold text-xl text-primary">{formatVND(total)}</span>
-                </div>
+            ))
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-card rounded-xl border border-border p-6">
+            <h3 className="font-semibold text-lg mb-4">Order Summary</h3>
+
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>{formatVND(subtotal)}</span>
               </div>
-              
-              {/* Payment Method */}
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                Payment Method
-              </p>
-              
-              <div className="space-y-2 mb-4">
-                <button
-                  onClick={() => setPaymentMethod("wallet")}
-                  className={cn(
-                    "w-full p-3 rounded-lg border flex items-center justify-between transition-colors",
-                    paymentMethod === "wallet" 
-                      ? "border-primary bg-primary/5" 
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <Wallet className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-medium">Internal Wallet</p>
-                      <p className="text-xs text-primary">Balance: {formatVND(walletBalance)}</p>
-                    </div>
-                  </div>
-                  {paymentMethod === "wallet" && (
-                    <CheckCircle className="w-5 h-5 text-primary" />
-                  )}
-                </button>
-                
-                <button
-                  onClick={() => setPaymentMethod("vnpay")}
-                  className={cn(
-                    "w-full p-3 rounded-lg border flex items-center justify-between transition-colors",
-                    paymentMethod === "vnpay" 
-                      ? "border-primary bg-primary/5" 
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
-                      <QrCode className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-medium">VNPay QR</p>
-                      <p className="text-xs text-muted-foreground">Scan to pay</p>
-                    </div>
-                  </div>
-                  {paymentMethod === "vnpay" && (
-                    <CheckCircle className="w-5 h-5 text-primary" />
-                  )}
-                </button>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">VAT (8%)</span>
+                <span>{formatVND(vat)}</span>
               </div>
-              
-              <Button className="w-full gap-2" size="lg">
-                Place Order
-                <span className="ml-2 px-2 py-0.5 bg-primary-foreground/20 rounded text-xs">
-                  {formatVND(total)}
-                </span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-              
-              <p className="text-xs text-center text-muted-foreground mt-3">
-                By placing an order, you agree to our{" "}
-                <a href="#" className="text-primary underline">Terms of Service</a>.
-              </p>
+              <div className="border-t border-border pt-3 flex justify-between">
+                <span className="font-medium">Total</span>
+                <span className="font-bold text-xl text-primary">{formatVND(total)}</span>
+              </div>
             </div>
-            
-            {/* Help */}
-            <div className="bg-muted/50 rounded-xl p-4 flex items-start gap-3">
-              <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Need help with your order?</p>
-                <p className="text-xs text-muted-foreground">
-                  Contact the canteen support at{" "}
-                  <a href="mailto:support@schoolcanteen.com" className="text-primary underline">
-                    support@schoolcanteen.com
-                  </a>
-                </p>
-              </div>
+
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Payment Method</p>
+
+            <div className="space-y-2 mb-4">
+              <button
+                onClick={() => setPaymentMethod("wallet")}
+                className={cn(
+                  "w-full p-3 rounded-lg border flex items-center justify-between transition-colors",
+                  paymentMethod === "wallet" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Wallet className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Internal Wallet</p>
+                    <p className="text-xs text-primary">
+                      Balance: {typeof walletMe?.balance === "number" ? formatVND(Number(walletMe.balance)) : "—"}
+                    </p>
+                  </div>
+                </div>
+                {paymentMethod === "wallet" && <CheckCircle className="w-5 h-5 text-primary" />}
+              </button>
+
+              <button
+                onClick={() => setPaymentMethod("vnpay")}
+                className={cn(
+                  "w-full p-3 rounded-lg border flex items-center justify-between transition-colors",
+                  paymentMethod === "vnpay" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
+                    <QrCode className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">VNPay QR</p>
+                    <p className="text-xs text-muted-foreground">Scan to pay</p>
+                  </div>
+                </div>
+                {paymentMethod === "vnpay" && <CheckCircle className="w-5 h-5 text-primary" />}
+              </button>
+            </div>
+
+            <Button className="w-full gap-2" size="lg" onClick={handlePlaceOrder} disabled={cart.lines.length === 0}>
+              Place Order
+              <span className="ml-2 px-2 py-0.5 bg-primary-foreground/20 rounded text-xs">{formatVND(total)}</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground mt-3">
+              By placing an order, you agree to our{" "}
+              <a href="#" className="text-primary underline">
+                Terms of Service
+              </a>
+              .
+            </p>
+          </div>
+
+          <div className="bg-muted/50 rounded-xl p-4 flex items-start gap-3">
+            <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">Need help with your order?</p>
+              <p className="text-xs text-muted-foreground">
+                Contact the canteen support at{" "}
+                <a href="mailto:support@schoolcanteen.com" className="text-primary underline">
+                  support@schoolcanteen.com
+                </a>
+              </p>
             </div>
           </div>
         </div>

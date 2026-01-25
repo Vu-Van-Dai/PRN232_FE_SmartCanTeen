@@ -1,81 +1,29 @@
-import { useState } from "react";
+import { useMemo } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { MenuItemCard, MenuItem } from "@/components/menu/MenuItemCard";
 import { toast } from "@/hooks/use-toast";
+import { menuItemsApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { useCart } from "@/lib/cart/CartContext";
 
-const sampleMenuItems: MenuItem[] = [
-  {
-    id: "1",
-    name: "Chicken Rice Set",
-    description: "Roasted chicken served with fragrant rice, cucumber, and homemade chili sauce.",
-    price: 4.50,
-    image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop",
-    category: "rice",
-    status: "in_stock"
-  },
-  {
-    id: "2",
-    name: "Iced Milo",
-    description: "Classic chocolate malt drink served ice cold. A student favorite.",
-    price: 1.20,
-    image: "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop",
-    category: "drinks",
-    status: "in_stock"
-  },
-  {
-    id: "3",
-    name: "Spicy Noodle Soup",
-    description: "Egg noodles in a savory spicy broth with minced pork and vegetables.",
-    price: 3.80,
-    image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&h=300&fit=crop",
-    category: "noodles",
-    status: "low_stock"
-  },
-  {
-    id: "4",
-    name: "Fresh Fruit Salad",
-    description: "A healthy mix of seasonal fruits including watermelon, papaya, and pineapple.",
-    price: 2.50,
-    image: "https://images.unsplash.com/photo-1564093497595-593b96d80180?w=400&h=300&fit=crop",
-    category: "snacks",
-    status: "in_stock"
-  },
-  {
-    id: "5",
-    name: "Curry Chicken",
-    description: "Rich coconut curry chicken served with a side of steamed rice.",
-    price: 4.00,
-    image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400&h=300&fit=crop",
-    category: "rice",
-    status: "sold_out"
-  },
-  {
-    id: "6",
-    name: "Orange Juice",
-    description: "Freshly squeezed orange juice, full of vitamin C. No sugar added.",
-    price: 2.00,
-    image: "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&h=300&fit=crop",
-    category: "drinks",
-    status: "in_stock"
-  },
-  {
-    id: "7",
-    name: "Grilled Sandwich",
-    description: "Spicy chicken with cheddar cheese and signature sauce.",
-    price: 3.50,
-    image: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400&h=300&fit=crop",
-    category: "snacks",
-    status: "in_stock"
-  },
-  {
-    id: "8",
-    name: "Fried Rice Special",
-    description: "Wok-fried rice with shrimp, chicken, and mixed vegetables.",
-    price: 4.20,
-    image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400&h=300&fit=crop",
-    category: "rice",
-    status: "in_stock"
-  },
-];
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop";
+
+function slugify(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function statusFromInventory(qty: number): MenuItem["status"] {
+  if (qty <= 0) return "sold_out";
+  if (qty <= 5) return "low_stock";
+  return "in_stock";
+}
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -85,10 +33,52 @@ function getGreeting() {
 }
 
 export default function StudentMenu() {
-  const [items] = useState<MenuItem[]>(sampleMenuItems);
+  const { user } = useAuth();
+  const cart = useCart();
+  const { category } = useParams<{ category?: string }>();
+
+  const { data: rawItems = [], isLoading, isError } = useQuery({
+    queryKey: ["menu-items"],
+    queryFn: menuItemsApi.getMenuItems,
+    staleTime: 30_000,
+  });
+
+  const items = useMemo<MenuItem[]>(() => {
+    return rawItems
+      .filter((x) => x.isActive)
+      .map((x) => {
+        const catSlug = slugify(x.categoryName);
+        return {
+          id: x.id,
+          name: x.name,
+          description: x.categoryName,
+          price: Number(x.price),
+          image: x.imageUrl ?? FALLBACK_IMAGE,
+          category: catSlug,
+          status: statusFromInventory(x.inventoryQuantity),
+        } satisfies MenuItem;
+      });
+  }, [rawItems]);
+
+  const filtered = useMemo(() => {
+    if (!category) return items;
+    return items.filter((i) => i.category === category);
+  }, [category, items]);
+
   const greeting = getGreeting();
+  const resolvedName = user?.name ?? user?.email ?? "there";
   
   const handleAddToCart = (item: MenuItem) => {
+    cart.addItem(
+      {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        image: item.image,
+        description: item.description,
+      },
+      1
+    );
     toast({
       title: "Added to cart!",
       description: `${item.name} has been added to your cart.`,
@@ -100,16 +90,24 @@ export default function StudentMenu() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-1">
-          {greeting.text}, Alex! {greeting.emoji}
+          {greeting.text}, {resolvedName}! {greeting.emoji}
         </h1>
         <p className="text-muted-foreground">
           Hungry? Check out today's fresh menu.
         </p>
       </div>
+
+      {isLoading && (
+        <div className="text-sm text-muted-foreground">Loading menu...</div>
+      )}
+
+      {isError && (
+        <div className="text-sm text-destructive">Failed to load menu.</div>
+      )}
       
       {/* Menu Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {items.map((item) => (
+        {filtered.map((item) => (
           <MenuItemCard 
             key={item.id} 
             item={item} 

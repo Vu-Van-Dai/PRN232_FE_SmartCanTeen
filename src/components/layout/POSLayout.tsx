@@ -1,10 +1,12 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Search, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function POSLayout() {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
@@ -42,9 +44,14 @@ export function POSLayout() {
             </Avatar>
           </div>
           
-          <Button variant="default" size="sm" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-2 bg-foreground text-background hover:bg-foreground/90"
+            onClick={() => navigate("/pos/shift-close")}
+          >
             <Lock className="w-4 h-4" />
-            Lock
+            Khai báo
           </Button>
         </div>
       </header>

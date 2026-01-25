@@ -1,49 +1,62 @@
-import { useState } from "react";
-import { Search, Plus, Filter, Download, Pencil, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "@/hooks/use-toast";
+import { inventoryApi, menuItemsApi, type MenuItemResponse } from "@/lib/api";
 
-interface MenuItem {
-  id: string;
-  name: string;
-  subtitle: string;
-  category: string;
-  price: number;
-  inStock: boolean;
-  image: string;
+function formatVND(amount: number) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
 }
 
-const menuItems: MenuItem[] = [
-  { id: "1", name: "Chicken Burger", subtitle: "Spicy option available", category: "Main Course", price: 4.50, inStock: true, image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=100&h=100&fit=crop" },
-  { id: "2", name: "Zero Sugar Cola", subtitle: "330ml Can", category: "Drinks", price: 1.20, inStock: false, image: "https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=100&h=100&fit=crop" },
-  { id: "3", name: "Fresh Apple", subtitle: "Locally sourced", category: "Healthy", price: 0.80, inStock: true, image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=100&h=100&fit=crop" },
-  { id: "4", name: "Cheese Pizza Slice", subtitle: "Hot food counter", category: "Main Course", price: 3.00, inStock: true, image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=100&h=100&fit=crop" },
-  { id: "5", name: "Garden Salad", subtitle: "Pre-packaged", category: "Healthy", price: 2.50, inStock: true, image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=100&h=100&fit=crop" },
-];
-
-const categoryColors: Record<string, string> = {
-  "Main Course": "bg-destructive/10 text-destructive",
-  "Drinks": "bg-info/10 text-info",
-  "Healthy": "bg-primary/10 text-primary",
-  "Snacks": "bg-warning/10 text-warning",
-};
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&h=120&fit=crop";
 
 export default function MenuManagement() {
-  const [items, setItems] = useState<MenuItem[]>(menuItems);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  const toggleStock = (id: string) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, inStock: !item.inStock } : item
-    ));
-  };
-  
-  const filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+
+  const qc = useQueryClient();
+  const [restockOpen, setRestockOpen] = useState(false);
+  const [restockItem, setRestockItem] = useState<MenuItemResponse | null>(null);
+  const [restockQty, setRestockQty] = useState("1");
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ["menu-items"],
+    queryFn: menuItemsApi.getMenuItems,
+    staleTime: 10_000,
+  });
+
+  const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (x) => x.name.toLowerCase().includes(q) || x.categoryName.toLowerCase().includes(q)
+    );
+  }, [items, searchQuery]);
+
+  const restockMutation = useMutation({
+    mutationFn: (p: { itemId: string; quantity: number }) =>
+      inventoryApi.restock({ itemId: p.itemId, quantity: p.quantity }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["menu-items"] });
+      toast({ title: "Stock updated", description: "Inventory quantity increased." });
+      setRestockOpen(false);
+    },
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : "Restock failed";
+      toast({ title: "Restock failed", description: msg, variant: "destructive" });
+    },
+  });
   
   return (
     <div>
@@ -74,15 +87,6 @@ export default function MenuManagement() {
           />
         </div>
         
-        <Button variant="outline" className="gap-2">
-          <Filter className="w-4 h-4" />
-          Filter
-        </Button>
-        
-        <Button variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Export
-        </Button>
       </div>
       
       {/* Table */}
@@ -94,72 +98,117 @@ export default function MenuManagement() {
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Item Name</th>
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Category</th>
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Price</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Stock Status</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Inventory</th>
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredItems.map((item) => (
+            {isLoading ? (
+              <tr>
+                <td className="px-6 py-6 text-sm text-muted-foreground" colSpan={6}>
+                  Loading…
+                </td>
+              </tr>
+            ) : filteredItems.length === 0 ? (
+              <tr>
+                <td className="px-6 py-6 text-sm text-muted-foreground" colSpan={6}>
+                  No items found.
+                </td>
+              </tr>
+            ) : (
+              filteredItems.map((item) => (
               <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                 <td className="px-6 py-4">
                   <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    <img
+                      src={item.imageUrl ?? FALLBACK_IMAGE}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </td>
                 <td className="px-6 py-4">
                   <p className="font-medium">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">{item.subtitle}</p>
+                  <p className="text-sm text-muted-foreground">{item.isActive ? "Active" : "Inactive"}</p>
                 </td>
                 <td className="px-6 py-4">
-                  <Badge className={categoryColors[item.category] || "bg-muted"}>
-                    {item.category}
-                  </Badge>
+                  <Badge className="bg-muted text-foreground">{item.categoryName}</Badge>
                 </td>
                 <td className="px-6 py-4 font-medium">
-                  ${item.price.toFixed(2)}
+                  {formatVND(item.price)}
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <Switch 
-                      checked={item.inStock}
-                      onCheckedChange={() => toggleStock(item.id)}
-                    />
-                    <span className={item.inStock ? "text-primary text-sm" : "text-muted-foreground text-sm"}>
-                      {item.inStock ? "In Stock" : "Out of Stock"}
-                    </span>
-                  </div>
+                  <span className={item.inventoryQuantity > 0 ? "text-primary text-sm font-medium" : "text-destructive text-sm font-medium"}>
+                    {item.inventoryQuantity}
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
-                    <button className="p-2 hover:bg-muted rounded-lg transition-colors">
-                      <Pencil className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    <button className="p-2 hover:bg-destructive/10 rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                    </button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setRestockItem(item);
+                        setRestockQty("1");
+                        setRestockOpen(true);
+                      }}
+                    >
+                      Add Stock
+                    </Button>
                   </div>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
         
         {/* Pagination */}
         <div className="p-4 border-t border-border flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing 1 to {filteredItems.length} of 24 results
-          </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" disabled>‹</Button>
-            <Button variant="default" size="sm" className="w-9">1</Button>
-            <Button variant="outline" size="sm" className="w-9">2</Button>
-            <Button variant="outline" size="sm" className="w-9">3</Button>
-            <span className="px-2 text-muted-foreground">...</span>
-            <Button variant="outline" size="sm" className="w-9">8</Button>
-            <Button variant="outline" size="sm">›</Button>
-          </div>
+          <p className="text-sm text-muted-foreground">Showing {filteredItems.length} item(s)</p>
         </div>
       </div>
+
+      <Dialog open={restockOpen} onOpenChange={setRestockOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Stock</DialogTitle>
+            <DialogDescription>
+              Increase inventory quantity for <span className="font-medium">{restockItem?.name ?? ""}</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Quantity</label>
+            <Input
+              value={restockQty}
+              onChange={(e) => setRestockQty(e.target.value)}
+              inputMode="numeric"
+              placeholder="e.g. 10"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRestockOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!restockItem) return;
+                const qty = Math.floor(Number(restockQty));
+                if (!Number.isFinite(qty) || qty <= 0) {
+                  toast({ title: "Invalid quantity", description: "Please enter a positive number.", variant: "destructive" });
+                  return;
+                }
+                restockMutation.mutate({ itemId: restockItem.id, quantity: qty });
+              }}
+              disabled={restockMutation.isPending || !restockItem}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

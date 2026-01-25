@@ -1,40 +1,89 @@
-import { useState } from "react";
-import { Download, CreditCard, Search, Building, ChevronLeft, ChevronRight, QrCode } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Download, CreditCard, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { walletApi } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
-interface Transaction {
-  id: string;
-  date: string;
-  time: string;
-  description: string;
-  type: "topup" | "purchase";
-  referenceId: string;
-  status: "completed" | "pending";
-  amount: number;
+const topUpAmounts = [20000, 50000, 100000];
+
+function formatVND(amount: number) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
 }
 
-const transactions: Transaction[] = [
-  { id: "1", date: "Oct 24, 2023", time: "10:42 AM", description: "Wallet Top-up", type: "topup", referenceId: "#TRX-882910", status: "completed", amount: 50.00 },
-  { id: "2", date: "Oct 23, 2023", time: "12:15 PM", description: "Burger Station - Set A", type: "purchase", referenceId: "#ORD-112399", status: "completed", amount: -8.50 },
-  { id: "3", date: "Oct 23, 2023", time: "08:30 AM", description: "Morning Brew Cafe", type: "purchase", referenceId: "#ORD-112355", status: "completed", amount: -4.20 },
-  { id: "4", date: "Oct 21, 2023", time: "04:15 PM", description: "Wallet Top-up", type: "topup", referenceId: "#TRX-881002", status: "pending", amount: 20.00 },
-];
+function maskGuid(guid: string) {
+  if (!guid) return "";
+  const s = guid.replace(/-/g, "");
+  if (s.length <= 8) return guid;
+  return `${s.slice(0, 4)} ${s.slice(4, 8)} ${s.slice(8, 12)} ${s.slice(12, 16)}`.trim();
+}
 
-const topUpAmounts = [10, 20, 50];
+function shortId(id: string) {
+  if (!id) return "";
+  return id.split("-")[0] ?? id;
+}
+
+function statusLabel(status: number) {
+  // BE: Pending=0, Success=1, Failed=2
+  if (status === 1) return { text: "Success", className: "bg-primary/10 text-primary" };
+  if (status === 2) return { text: "Failed", className: "bg-destructive/10 text-destructive" };
+  return { text: "Pending", className: "bg-warning/10 text-warning" };
+}
+
+function typeSignedAmount(type: number, amount: number) {
+  // BE: Credit=0, Debit=1
+  if (type === 1) return -Math.abs(amount);
+  return Math.abs(amount);
+}
 
 export default function StudentWallet() {
-  const [balance] = useState(124.50);
-  const [selectedAmount, setSelectedAmount] = useState(20);
-  const [customAmount, setCustomAmount] = useState("20.00");
+  const { data: walletMe, isLoading, isError } = useQuery({
+    queryKey: ["wallet", "me"],
+    queryFn: walletApi.getMyWallet,
+    staleTime: 15_000,
+    retry: false,
+  });
+
+  const balance = walletMe?.balance ?? 0;
+
+  const [selectedAmount, setSelectedAmount] = useState(topUpAmounts[1]);
+  const [customAmount, setCustomAmount] = useState(String(topUpAmounts[1]));
+
+  const parsedAmount = useMemo(() => {
+    const n = Number(String(customAmount).replace(/,/g, "").trim());
+    return Number.isFinite(n) ? n : NaN;
+  }, [customAmount]);
+
+  const topupMutation = useMutation({
+    mutationFn: (amount: number) => walletApi.topupMyWallet(amount),
+    onSuccess: (res) => {
+      if (res?.paymentUrl) window.open(res.paymentUrl, "_blank", "noopener,noreferrer");
+      toast({ title: "Top-up created", description: "Opened payment page in a new tab." });
+    },
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : "Top-up failed";
+      toast({ title: "Top-up failed", description: msg, variant: "destructive" });
+    },
+  });
+
+  const { data: txRes, isLoading: txLoading } = useQuery({
+    queryKey: ["wallet", "transactions"],
+    queryFn: () => walletApi.getMyWalletTransactions({ skip: 0, take: 20 }),
+    staleTime: 10_000,
+    retry: false,
+  });
   
   return (
     <div>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <span className="text-primary hover:underline cursor-pointer">Home</span>
+        <Link to="/student/home" className="text-primary hover:underline">
+          Home
+        </Link>
         <span>›</span>
         <span>My Wallet</span>
       </div>
@@ -62,7 +111,9 @@ export default function StudentWallet() {
           </div>
           
           <p className="text-white/60 text-sm mb-1">Current Balance</p>
-          <h2 className="text-4xl font-bold mb-2">${balance.toFixed(2)}</h2>
+          <h2 className="text-4xl font-bold mb-2">
+            {isLoading ? "…" : isError ? "—" : formatVND(Number(balance))}
+          </h2>
           <div className="flex items-center gap-2 mb-8">
             <span className="w-2 h-2 bg-primary rounded-full" />
             <span className="text-primary text-sm font-medium">ACTIVE STATUS</span>
@@ -70,12 +121,12 @@ export default function StudentWallet() {
           
           <div className="flex justify-between mt-auto">
             <div>
-              <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Student ID</p>
-              <p className="text-white font-mono text-lg">8824 5592 1033</p>
+              <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Wallet ID</p>
+              <p className="text-white font-mono text-sm">{walletMe?.walletId ? maskGuid(walletMe.walletId) : "—"}</p>
             </div>
             <div className="text-right">
-              <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Valid Thru</p>
-              <p className="text-white font-mono text-lg">12/25</p>
+              <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Status</p>
+              <p className="text-white font-mono text-sm">Active</p>
             </div>
           </div>
         </div>
@@ -97,7 +148,7 @@ export default function StudentWallet() {
                 key={amount}
                 onClick={() => {
                   setSelectedAmount(amount);
-                  setCustomAmount(amount.toFixed(2));
+                  setCustomAmount(String(amount));
                 }}
                 className={cn(
                   "flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors",
@@ -106,22 +157,32 @@ export default function StudentWallet() {
                     : "border-border hover:bg-muted"
                 )}
               >
-                ${amount}
+                {formatVND(amount)}
               </button>
             ))}
           </div>
           
           <div className="relative mb-4">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">VND</span>
             <Input 
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
-              className="pl-8"
+              className="pl-12"
             />
           </div>
           
           <div className="flex gap-4">
-            <Button className="flex-1 gap-2">
+            <Button
+              className="flex-1 gap-2"
+              disabled={!Number.isFinite(parsedAmount) || parsedAmount <= 0 || topupMutation.isPending}
+              onClick={() => {
+                if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+                  toast({ title: "Invalid amount", description: "Please enter a valid amount.", variant: "destructive" });
+                  return;
+                }
+                topupMutation.mutate(parsedAmount);
+              }}
+            >
               Generate QR Code
               <QrCode className="w-4 h-4" />
             </Button>
@@ -135,92 +196,49 @@ export default function StudentWallet() {
           </div>
           
           <p className="text-xs text-muted-foreground text-center mt-3">
-            Scan with banking app • Expires in 04:59
+            Scan with banking app • Redirects to VNPay
           </p>
         </div>
       </div>
-      
-      {/* Recent Transactions */}
-      <div className="bg-card rounded-xl border border-border">
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <h3 className="font-semibold text-lg">Recent Transactions</h3>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search..."
-                className="pl-10 w-48 h-9"
-              />
-            </div>
-            <Button variant="outline" size="sm">
-              <span className="sr-only">Filter</span>
-              ≡
-            </Button>
-          </div>
-        </div>
-        
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Date</th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Description</th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Reference ID</th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Status</th>
-                <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-medium">{tx.date}</p>
-                    <p className="text-xs text-muted-foreground">{tx.time}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center",
-                        tx.type === "topup" ? "bg-primary/10" : "bg-warning/10"
-                      )}>
-                        {tx.type === "topup" ? (
-                          <Building className="w-4 h-4 text-primary" />
-                        ) : (
-                          <span>🍔</span>
-                        )}
-                      </div>
-                      <span className="text-sm">{tx.description}</span>
+
+      <div className="bg-card rounded-xl border border-border p-6">
+        <h3 className="font-semibold text-lg mb-1">Recent Transactions</h3>
+        {txLoading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : !txRes?.items?.length ? (
+          <p className="text-sm text-muted-foreground">No transactions yet.</p>
+        ) : (
+          <div className="space-y-3 mt-4">
+            {txRes.items.map((tx) => {
+              const signed = typeSignedAmount(tx.type, tx.amount);
+              const meta = statusLabel(tx.status);
+              const created = new Date(tx.createdAt);
+              const isDebit = signed < 0;
+
+              const desc = tx.orderId ? "Order payment" : tx.type === 0 ? "Wallet top-up" : "Wallet transaction";
+              const ref = tx.orderId ? `#ORD-${shortId(tx.orderId)}` : `#TX-${shortId(tx.id)}`;
+
+              return (
+                <div key={tx.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{desc}</p>
+                      <Badge className={meta.className}>{meta.text}</Badge>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">{tx.referenceId}</td>
-                  <td className="px-6 py-4">
-                    <Badge className={tx.status === "completed" ? "badge-success" : "badge-warning"}>
-                      {tx.status === "completed" ? "Completed" : "Pending"}
-                    </Badge>
-                  </td>
-                  <td className={cn(
-                    "px-6 py-4 text-sm font-semibold text-right",
-                    tx.amount > 0 ? "text-primary" : "text-destructive"
-                  )}>
-                    {tx.amount > 0 ? "+" : ""}{tx.amount.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Pagination */}
-        <div className="p-4 border-t border-border flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Showing 1 to 4 of 24 entries</p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" disabled>Previous</Button>
-            <Button variant="default" size="sm" className="w-9">1</Button>
-            <Button variant="outline" size="sm" className="w-9">2</Button>
-            <Button variant="outline" size="sm">Next</Button>
+                    <p className="text-xs text-muted-foreground">
+                      {created.toLocaleString("vi-VN")} • {ref}
+                    </p>
+                  </div>
+
+                  <p className={cn("text-sm font-semibold", isDebit ? "text-destructive" : "text-primary")}>
+                    {signed > 0 ? "+" : "-"}
+                    {formatVND(Math.abs(signed))}
+                  </p>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
