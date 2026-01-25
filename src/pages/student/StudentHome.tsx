@@ -1,26 +1,24 @@
-import { Search, Bell, User, ChevronRight, Star, UtensilsCrossed, Grid3X3, Flame } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ChevronRight, Star, UtensilsCrossed, Grid3X3, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const categories = [
   { 
     name: "Breakfast", 
     image: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400&h=300&fit=crop",
-    path: "/category/breakfast",
+    path: "/student/menu/category/breakfast",
     gradient: "from-amber-500/80 to-yellow-600/80"
   },
   { 
     name: "Lunch", 
     image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop",
-    path: "/category/lunch",
+    path: "/student/menu/category/lunch",
     gradient: "from-orange-500/80 to-red-500/80"
   },
   { 
     name: "Snacks", 
     image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=400&h=300&fit=crop",
-    path: "/category/snacks",
+    path: "/student/menu/category/snacks",
     gradient: "from-teal-500/80 to-emerald-600/80"
   },
 ];
@@ -58,52 +56,7 @@ const topDishes = [
 
 export default function StudentHome() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-              <UtensilsCrossed className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-indigo-900">CanteenConnect</span>
-          </div>
-          
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-slate-600 hover:text-indigo-600 font-medium">Menu</Link>
-            <Link to="/orders" className="text-slate-600 hover:text-indigo-600 font-medium">My Orders</Link>
-            <Link to="/wallet" className="text-slate-600 hover:text-indigo-600 font-medium">Wallet</Link>
-          </nav>
-          
-          <div className="flex items-center gap-3">
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                type="text"
-                placeholder="Search for food..."
-                className="w-56 pl-10 bg-slate-100 border-0 rounded-full h-10"
-              />
-            </div>
-            
-            <button className="relative p-2 hover:bg-slate-100 rounded-full transition-colors">
-              <Bell className="w-5 h-5 text-slate-500" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full" />
-            </button>
-            
-            <button className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-              <User className="w-5 h-5 text-slate-500" />
-            </button>
-            
-            <Avatar className="h-9 w-9 border-2 border-orange-200">
-              <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto">
         {/* Hero Banner */}
         <div className="relative rounded-2xl overflow-hidden mb-6">
           <img
@@ -126,8 +79,8 @@ export default function StudentHome() {
                 Grab the meal of the day at <span className="text-orange-500 font-semibold">20% off</span>. 
                 Limited time offer for students and staff.
               </p>
-              <Button className="bg-orange-500 hover:bg-orange-600 text-white px-6 rounded-full">
-                Order Now
+              <Button asChild className="bg-orange-500 hover:bg-orange-600 text-white px-6 rounded-full">
+                <Link to="/student/menu">Order Now</Link>
               </Button>
             </div>
 
@@ -191,7 +144,7 @@ export default function StudentHome() {
               <Flame className="w-5 h-5 text-orange-500" />
               <h2 className="text-lg font-bold text-slate-900">Top Selling Dishes</h2>
             </div>
-            <Link to="/" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">
+            <Link to="/student/menu" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">
               View All
             </Link>
           </div>
@@ -221,61 +174,6 @@ export default function StudentHome() {
             ))}
           </div>
         </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-slate-100 border-t border-slate-200 py-10">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-                  <UtensilsCrossed className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-lg font-bold text-indigo-900">CanteenConnect</span>
-              </div>
-              <p className="text-slate-500 text-sm">
-                Making campus dining easier, faster, and more delicious for everyone.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-indigo-600 uppercase text-xs tracking-wider mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li><a href="#" className="hover:text-slate-900">About Us</a></li>
-                <li><a href="#" className="hover:text-slate-900">Contact</a></li>
-                <li><a href="#" className="hover:text-slate-900">Careers</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-indigo-600 uppercase text-xs tracking-wider mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li><a href="#" className="hover:text-slate-900">Help Center</a></li>
-                <li><a href="#" className="hover:text-slate-900">Payment Methods</a></li>
-                <li><a href="#" className="hover:text-slate-900">Refund Policy</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-indigo-600 uppercase text-xs tracking-wider mb-4">Hours</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>Mon-Fri: 8am - 8pm</li>
-                <li>Sat: 9am - 4pm</li>
-                <li>Sun: Closed</li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-slate-200 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-slate-500">© 2024 CanteenConnect System. All rights reserved.</p>
-            <div className="flex items-center gap-6 text-sm text-slate-600">
-              <a href="#" className="hover:text-slate-900">Privacy Policy</a>
-              <a href="#" className="hover:text-slate-900">Terms of Service</a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

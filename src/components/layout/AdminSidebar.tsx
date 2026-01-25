@@ -1,7 +1,9 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, UtensilsCrossed, Users, BarChart3, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { getPrimaryRole } from "@/lib/auth/role-routing";
 
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/admin" },
@@ -19,10 +21,14 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ 
   schoolName = "Springfield High",
-  userName = "Jane Doe",
-  userRole = "Manager"
+  userName,
+  userRole
 }: AdminSidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const auth = useAuth();
+  const resolvedName = userName ?? auth.user?.name ?? auth.user?.email ?? "User";
+  const resolvedRole = userRole ?? getPrimaryRole(auth.user?.roles ?? []);
   
   return (
     <aside className="w-60 bg-card border-r border-border flex flex-col h-screen sticky top-0">
@@ -83,10 +89,16 @@ export function AdminSidebar({
             <AvatarFallback>JD</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <p className="text-sm font-medium">{userName}</p>
-            <p className="text-xs text-muted-foreground">{userRole}</p>
+            <p className="text-sm font-medium">{resolvedName}</p>
+            <p className="text-xs text-muted-foreground">{resolvedRole}</p>
           </div>
-          <LogOut className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" />
+          <LogOut
+            onClick={() => {
+              auth.logout();
+              navigate("/auth/login", { replace: true });
+            }}
+            className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground"
+          />
         </div>
       </div>
     </aside>

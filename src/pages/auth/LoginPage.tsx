@@ -1,26 +1,86 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, User, Lock, GraduationCap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { getDefaultPathForRoles, hasAnyRole } from "@/lib/auth/role-routing";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const auth = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Enforce correct login portal: staff/manager/admin/kitchen must use POS login.
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+
+    const roles = auth.user?.roles ?? [];
+    const isAdminOrManager = hasAnyRole(roles, ["AdminSystem", "Manager"]);
+    const isStaffSide = hasAnyRole(roles, ["Staff", "StaffPOS", "StaffKitchen"]) && !isAdminOrManager;
+
+    if (isStaffSide) {
+      auth.logout();
+      toast({
+        title: "Sai cổng đăng nhập",
+        description: "Tài khoản nhân viên vui lòng đăng nhập tại POS để mở ca.",
+        variant: "destructive",
+      });
+      navigate("/auth/pos", { replace: true });
+      return;
+    }
+
+    // Student/Parent already logged in => go to their home.
+    navigate(getDefaultPathForRoles(roles), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.isAuthenticated]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login - redirect based on email domain
-    if (email.includes("admin")) {
-      navigate("/admin");
-    } else if (email.includes("kitchen")) {
-      navigate("/kitchen/kds");
-    } else if (email.includes("pos")) {
-      navigate("/pos/login");
-    } else {
-      navigate("/home");
+
+    if (!email.trim() || !password) {
+      toast({
+        title: "Missing credentials",
+        description: "Please enter your email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const next = await auth.login(email.trim(), password);
+      const roles = next.user?.roles ?? [];
+
+      const isAdminOrManager = hasAnyRole(roles, ["AdminSystem", "Manager"]);
+      const isStaffSide = hasAnyRole(roles, ["Staff", "StaffPOS", "StaffKitchen"]) && !isAdminOrManager;
+      if (isStaffSide) {
+        auth.logout();
+        toast({
+          title: "Sai cổng đăng nhập",
+          description: "Tài khoản nhân viên vui lòng đăng nhập tại POS để mở ca.",
+          variant: "destructive",
+        });
+        navigate("/auth/pos", { replace: true });
+        return;
+      }
+
+      const target = getDefaultPathForRoles(roles);
+      navigate(target, { replace: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Login failed";
+      toast({
+        title: "Login failed",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -107,9 +167,10 @@ export default function LoginPage() {
 
           <Button
             type="submit"
+            disabled={isSubmitting}
             className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg rounded-xl"
           >
-            Sign In
+            {isSubmitting ? "Signing In..." : "Sign In"}
           </Button>
         </form>
 
@@ -124,7 +185,12 @@ export default function LoginPage() {
         <Button
           variant="outline"
           className="w-full h-14 gap-3 border-gray-200 rounded-xl hover:bg-gray-50"
-          onClick={() => navigate("/home")}
+          onClick={() =>
+            toast({
+              title: "Not available",
+              description: "School SSO is not implemented yet. Please sign in with email/password.",
+            })
+          }
         >
           <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
             <GraduationCap className="w-4 h-4 text-indigo-600" />

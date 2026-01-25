@@ -1,6 +1,8 @@
 import { Bell, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { getPrimaryRole } from "@/lib/auth/role-routing";
 
 interface AdminHeaderProps {
   userName?: string;
@@ -10,11 +12,15 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({ 
-  userName = "Jane Doe", 
-  userRole = "Staff Member",
+  userName,
+  userRole,
   showExport = false,
   onExport
 }: AdminHeaderProps) {
+  const { user } = useAuth();
+  const resolvedName = userName ?? user?.name ?? user?.email ?? "User";
+  const resolvedRole = userRole ?? getPrimaryRole(user?.roles ?? []);
+
   return (
     <header className="h-14 bg-primary px-6 flex items-center justify-between sticky top-0 z-40">
       {/* Left - can be used for breadcrumb or title */}
@@ -42,8 +48,8 @@ export function AdminHeader({
         {/* User */}
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <p className="text-sm font-medium text-primary-foreground">{userName}</p>
-            <p className="text-xs text-primary-foreground/70">{userRole}</p>
+            <p className="text-sm font-medium text-primary-foreground">{resolvedName}</p>
+            <p className="text-xs text-primary-foreground/70">{resolvedRole}</p>
           </div>
           <Avatar className="h-9 w-9 border-2 border-primary-foreground/20">
             <AvatarImage src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop" />

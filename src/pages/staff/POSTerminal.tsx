@@ -1,76 +1,76 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus, Trash2, CreditCard, QrCode, Printer, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { categoriesApi, menuItemsApi } from "@/lib/api";
+import type { CategoryResponse, MenuItemResponse } from "@/lib/api/types";
 
-interface POSMenuItem {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  category: string;
-}
-
-interface OrderItem extends POSMenuItem {
+interface OrderItem extends MenuItemResponse {
   quantity: number;
 }
 
-const categories = ["All Items", "Hot Meals", "Sandwiches", "Drinks", "Snacks"];
+function formatVND(amount: number) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
+}
 
-const menuItems: POSMenuItem[] = [
-  { id: "1", name: "Chicken Burger", price: 4.50, image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop", category: "Hot Meals" },
-  { id: "2", name: "Veggie Wrap", price: 3.00, image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=200&h=200&fit=crop", category: "Sandwiches" },
-  { id: "3", name: "Apple Juice", price: 1.50, image: "https://images.unsplash.com/photo-1576673442511-7e39b6545c87?w=200&h=200&fit=crop", category: "Drinks" },
-  { id: "4", name: "Fruit Cup", price: 2.00, image: "https://images.unsplash.com/photo-1564093497595-593b96d80180?w=200&h=200&fit=crop", category: "Snacks" },
-  { id: "5", name: "Pizza Slice", price: 2.50, image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=200&h=200&fit=crop", category: "Hot Meals" },
-  { id: "6", name: "Chocolate Milk", price: 1.75, image: "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop", category: "Drinks" },
-  { id: "7", name: "Garden Salad", price: 3.50, image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=200&fit=crop", category: "Snacks" },
-  { id: "8", name: "Hot Dog", price: 3.00, image: "https://images.unsplash.com/photo-1612392062422-ef19b42f74df?w=200&h=200&fit=crop", category: "Hot Meals" },
-];
-
-const categoryColors: Record<string, string> = {
-  "Hot Meals": "bg-blue-100",
-  "Sandwiches": "bg-green-100",
-  "Drinks": "bg-amber-100",
-  "Snacks": "bg-rose-100",
-};
+const fallbackImage =
+  "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=200&h=200&fit=crop";
 
 export default function POSTerminal() {
-  const [activeCategory, setActiveCategory] = useState("All Items");
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([
-    { ...menuItems[0], quantity: 2 },
-    { ...menuItems[2], quantity: 1 },
-  ]);
+  const categoriesQuery = useQuery({
+    queryKey: ["pos", "categories"],
+    queryFn: () => categoriesApi.getCategories(),
+  });
+
+  const menuItemsQuery = useQuery({
+    queryKey: ["pos", "menu-items"],
+    queryFn: () => menuItemsApi.getMenuItems(),
+  });
+
+  const categories = useMemo<CategoryResponse[]>(() => {
+    return (categoriesQuery.data ?? []).filter((c) => c.isActive);
+  }, [categoriesQuery.data]);
+
+  const menuItems = useMemo<MenuItemResponse[]>(() => {
+    return (menuItemsQuery.data ?? []).filter((m) => m.isActive);
+  }, [menuItemsQuery.data]);
+
+  const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const orderNumber = 293;
-  
-  const filteredItems = activeCategory === "All Items" 
-    ? menuItems 
-    : menuItems.filter(item => item.category === activeCategory);
-  
-  const addToOrder = (item: POSMenuItem) => {
-    const existing = orderItems.find(o => o.id === item.id);
+
+  const filteredItems = useMemo(() => {
+    if (activeCategoryId === "all") return menuItems;
+    return menuItems.filter((m) => m.categoryId === activeCategoryId);
+  }, [activeCategoryId, menuItems]);
+
+  const addToOrder = (item: MenuItemResponse) => {
+    const existing = orderItems.find((o) => o.id === item.id);
     if (existing) {
-      setOrderItems(orderItems.map(o => 
-        o.id === item.id ? { ...o, quantity: o.quantity + 1 } : o
-      ));
+      setOrderItems(orderItems.map((o) => (o.id === item.id ? { ...o, quantity: o.quantity + 1 } : o)));
     } else {
       setOrderItems([...orderItems, { ...item, quantity: 1 }]);
     }
   };
   
   const updateQuantity = (id: string, delta: number) => {
-    setOrderItems(orderItems.map(o => {
-      if (o.id === id) {
-        const newQty = o.quantity + delta;
-        return newQty > 0 ? { ...o, quantity: newQty } : o;
-      }
-      return o;
-    }).filter(o => o.quantity > 0));
+    setOrderItems(
+      orderItems
+        .map((o) => {
+          if (o.id === id) {
+            const newQty = o.quantity + delta;
+            return newQty > 0 ? { ...o, quantity: newQty } : o;
+          }
+          return o;
+        })
+        .filter((o) => o.quantity > 0)
+    );
   };
   
   const removeItem = (id: string) => {
-    setOrderItems(orderItems.filter(o => o.id !== id));
+    setOrderItems(orderItems.filter((o) => o.id !== id));
   };
   
   const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -83,43 +83,52 @@ export default function POSTerminal() {
       <div className="flex-1 p-6 overflow-auto">
         {/* Category Filters */}
         <div className="flex gap-2 mb-6">
+          <button
+            key="all"
+            onClick={() => setActiveCategoryId("all")}
+            className={cn("filter-chip gap-2", activeCategoryId === "all" && "filter-chip-active")}
+          >
+            🍽️ All Items
+          </button>
+
           {categories.map((cat) => (
             <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
+              key={cat.id}
+              onClick={() => setActiveCategoryId(cat.id)}
               className={cn(
                 "filter-chip gap-2",
-                activeCategory === cat && "filter-chip-active"
+                activeCategoryId === cat.id && "filter-chip-active"
               )}
             >
-              {cat === "All Items" && "🍽️"}
-              {cat === "Hot Meals" && "🔥"}
-              {cat === "Sandwiches" && "🥪"}
-              {cat === "Drinks" && "🥤"}
-              {cat === "Snacks" && "🍪"}
-              {cat}
+              {cat.name}
             </button>
           ))}
         </div>
         
         {/* Items Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {menuItemsQuery.isLoading ? (
+            <div className="col-span-full text-muted-foreground">Đang tải menu…</div>
+          ) : menuItemsQuery.isError ? (
+            <div className="col-span-full text-destructive">Không tải được menu từ hệ thống.</div>
+          ) : null}
+
           {filteredItems.map((item) => (
             <button
               key={item.id}
               onClick={() => addToOrder(item)}
               className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-md transition-shadow text-left"
             >
-              <div className={cn("aspect-square", categoryColors[item.category] || "bg-muted")}>
+              <div className={cn("aspect-square", "bg-muted")}>
                 <img 
-                  src={item.image} 
+                  src={item.imageUrl || fallbackImage} 
                   alt={item.name} 
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="p-3">
                 <h3 className="font-medium text-sm">{item.name}</h3>
-                <p className="text-sm text-primary font-semibold">${item.price.toFixed(2)}</p>
+                <p className="text-sm text-primary font-semibold">{formatVND(item.price)}</p>
               </div>
             </button>
           ))}
@@ -147,16 +156,16 @@ export default function POSTerminal() {
           {orderItems.map((item) => (
             <div key={item.id} className="flex gap-3">
               <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                <img src={item.imageUrl || fallbackImage} alt={item.name} className="w-full h-full object-cover" />
               </div>
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-medium text-sm">{item.name}</h4>
-                    <p className="text-xs text-muted-foreground">${item.price.toFixed(2)} ea</p>
+                    <p className="text-xs text-muted-foreground">{formatVND(item.price)} / món</p>
                   </div>
-                  <p className="font-semibold text-sm">${(item.price * item.quantity).toFixed(2)}</p>
+                  <p className="font-semibold text-sm">{formatVND(item.price * item.quantity)}</p>
                 </div>
                 
                 <div className="flex items-center gap-2 mt-2">
@@ -183,15 +192,15 @@ export default function POSTerminal() {
         <div className="border-t border-border p-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>{formatVND(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Tax (8%)</span>
-            <span>${tax.toFixed(2)}</span>
+            <span>{formatVND(tax)}</span>
           </div>
           <div className="flex justify-between pt-2 border-t border-border">
             <span className="font-medium">Total</span>
-            <span className="font-bold text-xl">${total.toFixed(2)}</span>
+            <span className="font-bold text-xl">{formatVND(total)}</span>
           </div>
         </div>
         

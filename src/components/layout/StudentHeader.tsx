@@ -1,22 +1,26 @@
-import { Search, Bell, ChevronDown, ShoppingCart, Wallet } from "lucide-react";
+import { Search, Bell, ChevronDown, ShoppingCart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { getPrimaryRole } from "@/lib/auth/role-routing";
+import { useCart } from "@/lib/cart/CartContext";
 
 interface StudentHeaderProps {
   userName?: string;
   userRole?: string;
-  walletBalance?: number;
-  cartCount?: number;
 }
 
 export function StudentHeader({ 
-  userName = "Alex M.", 
-  userRole = "Student",
-  walletBalance = 15.50,
-  cartCount = 2
+  userName,
+  userRole
 }: StudentHeaderProps) {
+  const { user } = useAuth();
+  const { itemCount } = useCart();
+  const resolvedName = userName ?? user?.name ?? user?.email ?? "User";
+  const resolvedRole = userRole ?? getPrimaryRole(user?.roles ?? []);
+
   return (
     <header className="h-16 bg-card border-b border-border px-6 flex items-center justify-between sticky top-0 z-40">
       {/* Search */}
@@ -31,26 +35,12 @@ export function StudentHeader({
       
       {/* Right Side */}
       <div className="flex items-center gap-4">
-        {/* Wallet Balance */}
-        <Link 
-          to="/wallet"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
-        >
-          <span className="text-xs text-muted-foreground uppercase tracking-wide">Wallet Balance</span>
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 bg-primary rounded flex items-center justify-center">
-              <Wallet className="w-3 h-3 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">${walletBalance.toFixed(2)}</span>
-          </div>
-        </Link>
-        
         {/* Cart */}
-        <Link to="/cart" className="relative p-2 rounded-lg hover:bg-muted transition-colors">
+        <Link to="/student/cart" className="relative p-2 rounded-lg hover:bg-muted transition-colors">
           <ShoppingCart className="w-5 h-5 text-muted-foreground" />
-          {cartCount > 0 && (
+          {itemCount > 0 && (
             <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-              {cartCount}
+              {itemCount}
             </Badge>
           )}
         </Link>
@@ -67,8 +57,8 @@ export function StudentHeader({
             <AvatarFallback>AM</AvatarFallback>
           </Avatar>
           <div className="text-left">
-            <p className="text-sm font-medium">{userName}</p>
-            <p className="text-xs text-primary">{userRole}</p>
+            <p className="text-sm font-medium">{resolvedName}</p>
+            <p className="text-xs text-primary">{resolvedRole}</p>
           </div>
           <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </button>
