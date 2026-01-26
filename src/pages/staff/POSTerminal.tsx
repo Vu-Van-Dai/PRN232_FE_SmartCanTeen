@@ -1,11 +1,49 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Minus, Plus, Trash2, CreditCard, QrCode, Printer, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { categoriesApi, menuItemsApi } from "@/lib/api";
+import { categoriesApi, menuItemsApi, ordersApi } from "@/lib/api";
 import type { CategoryResponse, MenuItemResponse } from "@/lib/api/types";
+import { useToast } from "@/hooks/use-toast";
+
+const POS_DRAFT_STORAGE_KEY = "sc_pos_draft_order_v1";
+
+type PosDraftOrder = {
+  createdAt: string;
+  orderItems: Array<OrderItem>;
+  pendingOrderId?: string;
+};
+
+function loadPosDraftOrder(): PosDraftOrder | null {
+  try {
+    const raw = localStorage.getItem(POS_DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PosDraftOrder;
+    if (!parsed || !Array.isArray(parsed.orderItems)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function savePosDraftOrder(draft: PosDraftOrder) {
+  try {
+    localStorage.setItem(POS_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function clearPosDraftOrder() {
+  try {
+    localStorage.removeItem(POS_DRAFT_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 interface OrderItem extends MenuItemResponse {
   quantity: number;
@@ -19,6 +57,9 @@ const fallbackImage =
   "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=200&h=200&fit=crop";
 
 export default function POSTerminal() {
+  const { toast } = useToast();
+  const location = useLocation();
+
   const categoriesQuery = useQuery({
     queryKey: ["pos", "categories"],
     queryFn: () => categoriesApi.getCategories(),
@@ -38,8 +79,116 @@ export default function POSTerminal() {
   }, [menuItemsQuery.data]);
 
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(() => {
+    const draft = loadPosDraftOrder();
+    return draft?.orderItems ?? [];
+  });
   const orderNumber = 293;
+
+  useEffect(() => {
+    // Persist draft so leaving the POS page (PayOS redirect) doesn't lose the order.
+    if (orderItems.length === 0) {
+      clearPosDraftOrder();
+      return;
+    }
+
+    const existing = loadPosDraftOrder();
+    savePosDraftOrder({
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+      orderItems,
+      pendingOrderId: existing?.pendingOrderId,
+    });
+  }, [orderItems]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const payos = params.get("payos");
+    if (!payos) return;
+
+    if (payos === "paid") {
+      toast({
+        title: "Thanh toán thành công",
+        description: "Đã thanh toán PayOS. Đơn đã được tạo trong hệ thống.",
+      });
+      setOrderItems([]);
+      clearPosDraftOrder();
+    }
+
+    if (payos === "cancel") {
+      toast({
+        title: "Đã hủy thanh toán",
+        description: "Đơn vẫn được giữ lại. Bạn có thể chọn CASH để thanh toán.",
+        variant: "destructive",
+      });
+    }
+  }, [location.search, toast]);
+
+  const createQrOrderMutation = useMutation({
+    mutationFn: async () => {
+      if (orderItems.length === 0) throw new Error("Chưa có món trong đơn.");
+
+      const totalPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+      return ordersApi.createPosOfflineOrder({
+        totalPrice,
+        items: orderItems.map((i) => ({ itemId: i.id, quantity: i.quantity })),
+      });
+    },
+    onSuccess: (res) => {
+      if (res?.qrUrl) {
+        // Save order draft + backend orderId so user can come back (cancel) and still see the order.
+        savePosDraftOrder({
+          createdAt: new Date().toISOString(),
+          orderItems,
+          pendingOrderId: res.orderId,
+        });
+
+        // Same-tab redirect to PayOS. PayOS will return to /payos/return or /payos/cancel.
+        window.location.assign(res.qrUrl);
+      } else {
+        toast({
+          title: "Không tạo được QR",
+          description: "Thiếu đường dẫn thanh toán từ hệ thống.",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Tạo QR thất bại",
+        description: err?.message ?? "Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createCashOrderMutation = useMutation({
+    mutationFn: async () => {
+      if (orderItems.length === 0) throw new Error("Chưa có món trong đơn.");
+
+      const totalPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+      return ordersApi.createPosOfflineOrderCash({
+        totalPrice,
+        items: orderItems.map((i) => ({ itemId: i.id, quantity: i.quantity })),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Đã thanh toán tiền mặt",
+        description: "Đơn đã được ghi nhận và chuyển sang chế biến.",
+      });
+      setOrderItems([]);
+      clearPosDraftOrder();
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Thanh toán CASH thất bại",
+        description: err?.message ?? "Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const filteredItems = useMemo(() => {
     if (activeCategoryId === "all") return menuItems;
@@ -74,8 +223,8 @@ export default function POSTerminal() {
   };
   
   const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.08;
-  const total = subtotal + tax;
+  const tax = 0;
+  const total = subtotal;
   
   return (
     <div className="flex h-[calc(100vh-56px)]">
@@ -207,7 +356,10 @@ export default function POSTerminal() {
         {/* Action Buttons */}
         <div className="p-4 border-t border-border">
           <div className="grid grid-cols-4 gap-2">
-            <button className="aspect-square rounded-lg border border-destructive/20 bg-destructive/5 flex flex-col items-center justify-center gap-1 hover:bg-destructive/10 transition-colors">
+            <button
+              onClick={() => setOrderItems([])}
+              className="aspect-square rounded-lg border border-destructive/20 bg-destructive/5 flex flex-col items-center justify-center gap-1 hover:bg-destructive/10 transition-colors"
+            >
               <Trash2 className="w-5 h-5 text-destructive" />
               <span className="text-xs text-destructive">Cancel</span>
             </button>
@@ -215,11 +367,19 @@ export default function POSTerminal() {
               <Printer className="w-5 h-5" />
               <span className="text-xs">Print</span>
             </button>
-            <button className="aspect-square rounded-lg border border-border bg-card flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors">
+            <button
+              onClick={() => createQrOrderMutation.mutate()}
+              disabled={createQrOrderMutation.isPending || orderItems.length === 0}
+              className="aspect-square rounded-lg border border-border bg-card flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors disabled:opacity-50"
+            >
               <QrCode className="w-5 h-5" />
               <span className="text-xs">QR Pay</span>
             </button>
-            <button className="aspect-square rounded-lg bg-primary text-primary-foreground flex flex-col items-center justify-center gap-1 hover:bg-primary/90 transition-colors">
+            <button
+              onClick={() => createCashOrderMutation.mutate()}
+              disabled={createCashOrderMutation.isPending || orderItems.length === 0}
+              className="aspect-square rounded-lg bg-primary text-primary-foreground flex flex-col items-center justify-center gap-1 hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
               <CreditCard className="w-5 h-5" />
               <span className="text-xs font-medium">CASH</span>
             </button>
