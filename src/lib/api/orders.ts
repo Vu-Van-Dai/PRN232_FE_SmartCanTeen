@@ -5,6 +5,7 @@ import type {
   CreateOnlineOrderRequest,
   CreateOnlineOrderResponse,
   Guid,
+  PosPaymentStatusResponse,
 } from "./types";
 
 // Student/Parent
@@ -34,4 +35,23 @@ export function createPosOfflineOrderCash(body: CreateOfflineOrderRequest) {
     method: "POST",
     body,
   });
+}
+
+// Staff/POS/Manager
+export function payExistingPosOrderByCash(orderId: Guid) {
+  return apiRequest<void>(`/api/pos/orders/${orderId}/cash`, {
+    method: "POST",
+  });
+}
+
+// Staff/POS/Manager
+export function cancelExistingPosOrder(orderId: Guid) {
+  return apiRequest<void>(`/api/pos/orders/${orderId}/cancel`, {
+    method: "POST",
+  });
+}
+
+// Staff/POS/Manager
+export function getPosOrderPaymentStatus(orderId: Guid) {
+  return apiRequest<PosPaymentStatusResponse>(`/api/pos/orders/${orderId}/payment-status`);
 }

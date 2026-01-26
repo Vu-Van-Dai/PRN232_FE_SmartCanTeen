@@ -100,12 +100,46 @@ export type CreateOfflineOrderRequest = {
 
 export type CreateOfflineOrderResponse = {
   orderId: Guid;
-  qrUrl: string;
+  // Backward-compat (older flow redirected to PayOS checkoutUrl)
+  qrUrl?: string;
+
+  // In-app POS QR modal
+  checkoutUrl?: string;
+  qrCode?: string | null;
+  orderCode?: number;
+};
+
+export type PosPaymentStatusResponse = {
+  orderId: Guid;
+  status: string;
+  paymentMethod: string;
+  isPaid: boolean;
+};
+
+export type KitchenOrderItemDto = {
+  itemId: Guid;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export type KitchenOrderDto = {
+  id: Guid;
+  createdAt: string;
+  pickupTime: string | null;
+  status: string;
+  isUrgent: boolean;
+  totalPrice: number;
+  orderedBy: string;
+  items: KitchenOrderItemDto[];
 };
 
 export type KitchenOrdersResponse = {
-  urgent: unknown[];
-  upcoming: unknown[];
+  pending: KitchenOrderDto[];
+  preparing: KitchenOrderDto[];
+  ready: KitchenOrderDto[];
+  urgent: KitchenOrderDto[];
+  upcoming: KitchenOrderDto[];
 };
 
 export type DailyReportResponse = {

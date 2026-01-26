@@ -111,10 +111,8 @@ const App = () => (
               {/* Kitchen */}
               <Route element={<RequireRoles anyOf={["StaffKitchen", "Staff", "Manager", "AdminSystem"]} />}>
                 <Route element={<KitchenLayout />}>
-                  <Route path="/kitchen" element={<KitchenDashboard />} />
-                  <Route path="/kitchen/menu" element={<KitchenDashboard />} />
-                  <Route path="/kitchen/inventory" element={<KitchenDashboard />} />
-                  <Route path="/kitchen/staff" element={<KitchenDashboard />} />
+                  <Route path="/kitchen" element={<Navigate to="/kitchen/board" replace />} />
+                  <Route path="/kitchen/board" element={<KitchenDashboard />} />
                 </Route>
                 <Route path="/kitchen/kds" element={<KitchenKDS />} />
               </Route>

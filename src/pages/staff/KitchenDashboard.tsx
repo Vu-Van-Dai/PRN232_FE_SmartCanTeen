@@ -1,30 +1,33 @@
 import { useState } from "react";
-import { Clock, ArrowRight, Check, CheckCheck, AlertTriangle, Leaf, MoreHorizontal } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Clock, ArrowRight, Check, CheckCheck, AlertTriangle, Leaf, MoreHorizontal, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+import * as kitchenApi from "@/lib/api/kitchen";
+import type { Guid, KitchenOrderDto } from "@/lib/api/types";
 
 type OrderStatus = "pending" | "preparing" | "ready";
 
-interface Order {
+type CardOrder = {
   id: string;
   customerName: string;
   items: string[];
   time: string;
   status: OrderStatus;
   tags?: ("new" | "veg" | "allergy")[];
-  readyTime?: string;
-}
+};
 
-const initialOrders: Order[] = [
-  { id: "ORD-405", customerName: "Leo Mitchell", items: ["2x Beef Burger", "1x Apple Juice"], time: "02:15", status: "pending", tags: ["new"] },
-  { id: "ORD-407", customerName: "Sarah Jenkins", items: ["1x Peanut Cookie"], time: "12:45", status: "pending", tags: ["allergy"] },
-  { id: "ORD-408", customerName: "Guest Teacher", items: ["1x Caesar Salad", "1x Water"], time: "00:30", status: "pending" },
-  { id: "ORD-402", customerName: "Mia Wong", items: ["1x Veggie Wrap", "1x Orange Juice"], time: "08:30", status: "preparing", tags: ["veg"] },
-  { id: "ORD-401", customerName: "Tom Baker", items: ["2x Fries"], time: "05:12", status: "preparing" },
-  { id: "ORD-399", customerName: "Alice Chen", items: ["1x Pasta Carbonara"], time: "Ready 2m ago", status: "ready" },
-  { id: "ORD-398", customerName: "Mr. Henderson", items: ["1x Club Sandwich", "1x Iced Coffee"], time: "Ready 5m ago", status: "ready" },
-];
+type BoardOrder = {
+  id: Guid;
+  displayId: string;
+  customerName: string;
+  items: string[];
+  time: string;
+  status: OrderStatus;
+  tags?: ("new" | "veg" | "allergy")[];
+};
 
 const filters = [
   { label: "All Orders", icon: null },
@@ -32,7 +35,7 @@ const filters = [
   { label: "Allergy Alert", icon: AlertTriangle, variant: "destructive" as const },
 ];
 
-function OrderCard({ order, onAction }: { order: Order; onAction: (id: string, newStatus: OrderStatus) => void }) {
+function OrderCard({ order, onAction }: { order: CardOrder; onAction: (id: string, newStatus: OrderStatus) => void }) {
   const isUrgent = order.status === "pending" && parseInt(order.time) > 10;
   const isPreparing = order.status === "preparing";
   
@@ -142,21 +145,77 @@ function OrderCard({ order, onAction }: { order: Order; onAction: (id: string, n
   );
 }
 
-export default function KitchenDashboard() {
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const [activeFilter, setActiveFilter] = useState("All Orders");
-  
-  const handleStatusChange = (id: string, newStatus: OrderStatus) => {
-    setOrders(orders.map(o => 
-      o.id === id 
-        ? { ...o, status: newStatus, time: newStatus === "ready" ? "Ready just now" : o.time } 
-        : o
-    ));
+function shortId(id: string) {
+  return id.length <= 6 ? id : id.slice(0, 6);
+}
+
+function minutesAgo(iso: string) {
+  const ms = Date.now() - Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  const m = Math.max(0, Math.floor(ms / 60000));
+  return `${m}m`;
+}
+
+function mapOrder(x: KitchenOrderDto, status: OrderStatus): BoardOrder {
+  const created = minutesAgo(x.createdAt);
+  return {
+    id: x.id,
+    displayId: shortId(x.id),
+    customerName: x.orderedBy,
+    items: x.items.map((i) => `${i.quantity}x ${i.name}`),
+    time: status === "ready" ? "Ready" : created || "Now",
+    status,
+    tags: status === "pending" ? ["new"] : undefined,
   };
+}
+
+export default function KitchenDashboard() {
+  const [activeFilter, setActiveFilter] = useState("All Orders");
+
+  const qc = useQueryClient();
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["kitchen-orders"],
+    queryFn: kitchenApi.getKitchenOrders,
+    refetchInterval: 2_000,
+    staleTime: 0,
+  });
+
+  const startCookingMutation = useMutation({
+    mutationFn: (orderId: Guid) => kitchenApi.startCooking(orderId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["kitchen-orders"] });
+    },
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : "Start cooking failed";
+      toast({ title: "Start cooking failed", description: msg, variant: "destructive" });
+    },
+  });
+
+  const markReadyMutation = useMutation({
+    mutationFn: (orderId: Guid) => kitchenApi.markOrderReady(orderId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["kitchen-orders"] });
+    },
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : "Mark ready failed";
+      toast({ title: "Mark ready failed", description: msg, variant: "destructive" });
+    },
+  });
   
-  const pendingOrders = orders.filter(o => o.status === "pending");
-  const preparingOrders = orders.filter(o => o.status === "preparing");
-  const readyOrders = orders.filter(o => o.status === "ready");
+  const handleStatusChange = (id: Guid, newStatus: OrderStatus) => {
+    if (newStatus === "preparing") {
+      startCookingMutation.mutate(id);
+      return;
+    }
+    if (newStatus === "ready") {
+      markReadyMutation.mutate(id);
+      return;
+    }
+  };
+
+  const pendingOrders = (data?.pending ?? []).map((x) => mapOrder(x, "pending"));
+  const preparingOrders = (data?.preparing ?? []).map((x) => mapOrder(x, "preparing"));
+  const readyOrders = (data?.ready ?? []).map((x) => mapOrder(x, "ready"));
   
   return (
     <div>
@@ -203,8 +262,32 @@ export default function KitchenDashboard() {
             </button>
           </div>
           <div className="space-y-3">
+            {isLoading && (
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading orders...
+              </div>
+            )}
+            {isError && (
+              <div className="text-sm text-destructive">
+                Failed to load orders: {error instanceof Error ? error.message : "Unknown error"}
+              </div>
+            )}
+            {!isLoading && !isError && pendingOrders.length === 0 && (
+              <div className="text-sm text-muted-foreground">No new orders.</div>
+            )}
             {pendingOrders.map((order) => (
-              <OrderCard key={order.id} order={order} onAction={handleStatusChange} />
+              <OrderCard
+                key={order.id}
+                order={{
+                  id: order.displayId,
+                  customerName: order.customerName,
+                  items: order.items,
+                  time: order.time,
+                  status: order.status,
+                  tags: order.tags,
+                }}
+                onAction={() => handleStatusChange(order.id, "preparing")}
+              />
             ))}
           </div>
         </div>
@@ -222,8 +305,22 @@ export default function KitchenDashboard() {
             </button>
           </div>
           <div className="space-y-3">
+            {!isLoading && !isError && preparingOrders.length === 0 && (
+              <div className="text-sm text-muted-foreground">No orders in progress.</div>
+            )}
             {preparingOrders.map((order) => (
-              <OrderCard key={order.id} order={order} onAction={handleStatusChange} />
+              <OrderCard
+                key={order.id}
+                order={{
+                  id: order.displayId,
+                  customerName: order.customerName,
+                  items: order.items,
+                  time: order.time,
+                  status: order.status,
+                  tags: order.tags,
+                }}
+                onAction={() => handleStatusChange(order.id, "ready")}
+              />
             ))}
           </div>
         </div>
@@ -241,8 +338,22 @@ export default function KitchenDashboard() {
             </button>
           </div>
           <div className="space-y-3">
+            {!isLoading && !isError && readyOrders.length === 0 && (
+              <div className="text-sm text-muted-foreground">No ready orders.</div>
+            )}
             {readyOrders.map((order) => (
-              <OrderCard key={order.id} order={order} onAction={handleStatusChange} />
+              <OrderCard
+                key={order.id}
+                order={{
+                  id: order.displayId,
+                  customerName: order.customerName,
+                  items: order.items,
+                  time: order.time,
+                  status: order.status,
+                  tags: order.tags,
+                }}
+                onAction={() => {}}
+              />
             ))}
           </div>
         </div>

@@ -1,13 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Minus, Plus, Trash2, CreditCard, QrCode, Printer, MoreVertical } from "lucide-react";
+import { Minus, Plus, Trash2, CreditCard } from "lucide-react";
+import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { categoriesApi, menuItemsApi, ordersApi } from "@/lib/api";
+import { apiRequest } from "@/lib/api/http";
 import type { CategoryResponse, MenuItemResponse } from "@/lib/api/types";
-import { useToast } from "@/hooks/use-toast";
 
 const POS_DRAFT_STORAGE_KEY = "sc_pos_draft_order_v1";
 
@@ -15,6 +34,8 @@ type PosDraftOrder = {
   createdAt: string;
   orderItems: Array<OrderItem>;
   pendingOrderId?: string;
+  pendingPayosOrderCode?: number;
+  pendingPayosQrCode?: string;
 };
 
 function loadPosDraftOrder(): PosDraftOrder | null {
@@ -45,6 +66,21 @@ function clearPosDraftOrder() {
   }
 }
 
+function getPendingOrderIdFromDraft(): string | null {
+  const draft = loadPosDraftOrder();
+  return draft?.pendingOrderId ?? null;
+}
+
+function getPendingPayosOrderCodeFromDraft(): number | null {
+  const draft = loadPosDraftOrder();
+  return typeof draft?.pendingPayosOrderCode === "number" ? draft.pendingPayosOrderCode : null;
+}
+
+function getPendingPayosQrCodeFromDraft(): string | null {
+  const draft = loadPosDraftOrder();
+  return typeof draft?.pendingPayosQrCode === "string" ? draft.pendingPayosQrCode : null;
+}
+
 interface OrderItem extends MenuItemResponse {
   quantity: number;
 }
@@ -53,12 +89,36 @@ function formatVND(amount: number) {
   return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
 }
 
+function getErrorMessage(err: unknown): string {
+  if (err && typeof err === "object" && "message" in err) {
+    const msg = (err as { message?: unknown }).message;
+    if (typeof msg === "string") return msg;
+  }
+  return "Vui lòng thử lại.";
+}
+
 const fallbackImage =
   "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=200&h=200&fit=crop";
 
 export default function POSTerminal() {
-  const { toast } = useToast();
   const location = useLocation();
+
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrWaitedLong, setQrWaitedLong] = useState(false);
+
+  const [infoDialogOpen, setInfoDialogOpen] = useState(false);
+  const [infoDialogTitle, setInfoDialogTitle] = useState<string>("");
+  const [infoDialogDescription, setInfoDialogDescription] = useState<string>("");
+
+  const showInfoDialog = (title: string, description?: string) => {
+    setInfoDialogTitle(title);
+    setInfoDialogDescription(description ?? "");
+    setInfoDialogOpen(true);
+  };
+
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelDialogMode, setCancelDialogMode] = useState<"order" | "payment">("order");
 
   const categoriesQuery = useQuery({
     queryKey: ["pos", "categories"],
@@ -83,12 +143,20 @@ export default function POSTerminal() {
     const draft = loadPosDraftOrder();
     return draft?.orderItems ?? [];
   });
+
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(() => getPendingOrderIdFromDraft());
+  const [pendingPayosOrderCode, setPendingPayosOrderCode] = useState<number | null>(() => getPendingPayosOrderCodeFromDraft());
+  const [pendingPayosQrCode, setPendingPayosQrCode] = useState<string | null>(() => getPendingPayosQrCodeFromDraft());
+
   const orderNumber = 293;
 
   useEffect(() => {
     // Persist draft so leaving the POS page (PayOS redirect) doesn't lose the order.
     if (orderItems.length === 0) {
       clearPosDraftOrder();
+      setPendingOrderId(null);
+      setPendingPayosOrderCode(null);
+      setPendingPayosQrCode(null);
       return;
     }
 
@@ -96,9 +164,11 @@ export default function POSTerminal() {
     savePosDraftOrder({
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       orderItems,
-      pendingOrderId: existing?.pendingOrderId,
+      pendingOrderId: pendingOrderId ?? existing?.pendingOrderId,
+      pendingPayosOrderCode: pendingPayosOrderCode ?? existing?.pendingPayosOrderCode,
+      pendingPayosQrCode: pendingPayosQrCode ?? existing?.pendingPayosQrCode,
     });
-  }, [orderItems]);
+  }, [orderItems, pendingOrderId, pendingPayosOrderCode, pendingPayosQrCode]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -106,22 +176,25 @@ export default function POSTerminal() {
     if (!payos) return;
 
     if (payos === "paid") {
-      toast({
-        title: "Thanh toán thành công",
-        description: "Đã thanh toán PayOS. Đơn đã được tạo trong hệ thống.",
-      });
+      showInfoDialog("Thanh toán thành công", "Đã thanh toán QR. Đơn đã được tạo trong hệ thống.");
       setOrderItems([]);
       clearPosDraftOrder();
+      setPendingOrderId(null);
+      setPendingPayosOrderCode(null);
+      setPendingPayosQrCode(null);
     }
 
     if (payos === "cancel") {
-      toast({
-        title: "Đã hủy thanh toán",
-        description: "Đơn vẫn được giữ lại. Bạn có thể chọn CASH để thanh toán.",
-        variant: "destructive",
-      });
+      setCancelDialogMode("payment");
+      setCancelDialogOpen(true);
     }
-  }, [location.search, toast]);
+
+    // Remove PayOS params so the dialog doesn't re-trigger on refresh/back.
+    params.delete("payos");
+    const next = params.toString();
+    const nextUrl = next ? `/pos?${next}` : "/pos";
+    window.history.replaceState(null, "", nextUrl);
+  }, [location.search]);
 
   const createQrOrderMutation = useMutation({
     mutationFn: async () => {
@@ -135,30 +208,36 @@ export default function POSTerminal() {
       });
     },
     onSuccess: (res) => {
-      if (res?.qrUrl) {
-        // Save order draft + backend orderId so user can come back (cancel) and still see the order.
-        savePosDraftOrder({
-          createdAt: new Date().toISOString(),
-          orderItems,
-          pendingOrderId: res.orderId,
-        });
+      const nextOrderId = res?.orderId;
+      const nextOrderCode = typeof res?.orderCode === "number" ? res.orderCode : null;
+      const nextQrCode = typeof res?.qrCode === "string" ? res.qrCode : null;
 
-        // Same-tab redirect to PayOS. PayOS will return to /payos/return or /payos/cancel.
-        window.location.assign(res.qrUrl);
-      } else {
-        toast({
-          title: "Không tạo được QR",
-          description: "Thiếu đường dẫn thanh toán từ hệ thống.",
-          variant: "destructive",
-        });
+      if (!nextOrderId) {
+        showInfoDialog("Không tạo được QR", "Thiếu thông tin đơn hàng từ hệ thống.");
+        return;
       }
-    },
-    onError: (err: any) => {
-      toast({
-        title: "Tạo QR thất bại",
-        description: err?.message ?? "Vui lòng thử lại.",
-        variant: "destructive",
+
+      if (!nextQrCode) {
+        showInfoDialog("Không tạo được QR", "Hệ thống không trả về nội dung QR.");
+        return;
+      }
+
+      setPendingOrderId(nextOrderId);
+      setPendingPayosOrderCode(nextOrderCode);
+      setPendingPayosQrCode(nextQrCode);
+
+      savePosDraftOrder({
+        createdAt: new Date().toISOString(),
+        orderItems,
+        pendingOrderId: nextOrderId,
+        pendingPayosOrderCode: nextOrderCode ?? undefined,
+        pendingPayosQrCode: nextQrCode,
       });
+
+      setQrDialogOpen(true);
+    },
+    onError: (err: unknown) => {
+      showInfoDialog("Tạo QR thất bại", getErrorMessage(err));
     },
   });
 
@@ -166,27 +245,48 @@ export default function POSTerminal() {
     mutationFn: async () => {
       if (orderItems.length === 0) throw new Error("Chưa có món trong đơn.");
 
-      const totalPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const pendingOrderId = getPendingOrderIdFromDraft();
+      if (pendingOrderId) {
+        await ordersApi.payExistingPosOrderByCash(pendingOrderId);
+        return { orderId: pendingOrderId };
+      }
 
+      const totalPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       return ordersApi.createPosOfflineOrderCash({
         totalPrice,
         items: orderItems.map((i) => ({ itemId: i.id, quantity: i.quantity })),
       });
     },
     onSuccess: () => {
-      toast({
-        title: "Đã thanh toán tiền mặt",
-        description: "Đơn đã được ghi nhận và chuyển sang chế biến.",
-      });
+      showInfoDialog("Đã thanh toán tiền mặt", "Đơn đã được ghi nhận và chuyển sang chế biến.");
       setOrderItems([]);
       clearPosDraftOrder();
+      setPendingOrderId(null);
+      setPendingPayosOrderCode(null);
+      setPendingPayosQrCode(null);
     },
-    onError: (err: any) => {
-      toast({
-        title: "Thanh toán CASH thất bại",
-        description: err?.message ?? "Vui lòng thử lại.",
-        variant: "destructive",
-      });
+    onError: (err: unknown) => {
+      showInfoDialog("Thanh toán CASH thất bại", getErrorMessage(err));
+    },
+  });
+
+  const cancelPendingOrderMutation = useMutation({
+    mutationFn: async () => {
+      const pendingOrderId = getPendingOrderIdFromDraft();
+      if (!pendingOrderId) return;
+      await ordersApi.cancelExistingPosOrder(pendingOrderId);
+    },
+    onSuccess: () => {
+      clearPosDraftOrder();
+      setOrderItems([]);
+      setPendingOrderId(null);
+      setPendingPayosOrderCode(null);
+      setPendingPayosQrCode(null);
+      setQrDialogOpen(false);
+      showInfoDialog("Đã hủy đơn", "Đơn đã được hủy trong hệ thống.");
+    },
+    onError: (err: unknown) => {
+      showInfoDialog("Hủy đơn thất bại", getErrorMessage(err));
     },
   });
 
@@ -225,8 +325,55 @@ export default function POSTerminal() {
   const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = 0;
   const total = subtotal;
+
+  const paymentStatusQuery = useQuery({
+    queryKey: ["pos", "payment-status", pendingOrderId],
+    queryFn: () => ordersApi.getPosOrderPaymentStatus(pendingOrderId as string),
+    enabled: qrDialogOpen && Boolean(pendingOrderId),
+    refetchInterval: 2000,
+  });
+
+  const confirmPayosPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!pendingPayosOrderCode) throw new Error("Thiếu orderCode PayOS.");
+      await apiRequest<void>("/api/payos/confirm", {
+        method: "POST",
+        query: { orderCode: pendingPayosOrderCode, status: "PAID" },
+      });
+    },
+    onSuccess: async () => {
+      await paymentStatusQuery.refetch();
+    },
+    onError: (err: unknown) => {
+      showInfoDialog("Xác nhận thanh toán thất bại", getErrorMessage(err));
+    },
+  });
+
+  useEffect(() => {
+    if (!qrDialogOpen) {
+      setQrWaitedLong(false);
+      return;
+    }
+
+    const t = window.setTimeout(() => setQrWaitedLong(true), 15000);
+    return () => window.clearTimeout(t);
+  }, [qrDialogOpen]);
+
+  useEffect(() => {
+    if (!qrDialogOpen) return;
+    if (!paymentStatusQuery.data?.isPaid) return;
+
+    setQrDialogOpen(false);
+    showInfoDialog("Thanh toán thành công", "Đã thanh toán QR. Đơn đã được tạo trong hệ thống.");
+    setOrderItems([]);
+    clearPosDraftOrder();
+    setPendingOrderId(null);
+    setPendingPayosOrderCode(null);
+    setPendingPayosQrCode(null);
+  }, [paymentStatusQuery.data, qrDialogOpen]);
   
   return (
+    <>
     <div className="flex h-[calc(100vh-56px)]">
       {/* Menu Grid */}
       <div className="flex-1 p-6 overflow-auto">
@@ -314,7 +461,18 @@ export default function POSTerminal() {
                     <h4 className="font-medium text-sm">{item.name}</h4>
                     <p className="text-xs text-muted-foreground">{formatVND(item.price)} / món</p>
                   </div>
-                  <p className="font-semibold text-sm">{formatVND(item.price * item.quantity)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-sm">{formatVND(item.price * item.quantity)}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted"
+                      aria-label="Xóa món"
+                      title="Xóa món"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex items-center gap-2 mt-2">
@@ -355,37 +513,186 @@ export default function POSTerminal() {
         
         {/* Action Buttons */}
         <div className="p-4 border-t border-border">
-          <div className="grid grid-cols-4 gap-2">
-            <button
-              onClick={() => setOrderItems([])}
-              className="aspect-square rounded-lg border border-destructive/20 bg-destructive/5 flex flex-col items-center justify-center gap-1 hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 className="w-5 h-5 text-destructive" />
-              <span className="text-xs text-destructive">Cancel</span>
-            </button>
-            <button className="aspect-square rounded-lg border border-border bg-card flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors">
-              <Printer className="w-5 h-5" />
-              <span className="text-xs">Print</span>
-            </button>
-            <button
-              onClick={() => createQrOrderMutation.mutate()}
-              disabled={createQrOrderMutation.isPending || orderItems.length === 0}
-              className="aspect-square rounded-lg border border-border bg-card flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              <QrCode className="w-5 h-5" />
-              <span className="text-xs">QR Pay</span>
-            </button>
-            <button
-              onClick={() => createCashOrderMutation.mutate()}
-              disabled={createCashOrderMutation.isPending || orderItems.length === 0}
-              className="aspect-square rounded-lg bg-primary text-primary-foreground flex flex-col items-center justify-center gap-1 hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              <CreditCard className="w-5 h-5" />
-              <span className="text-xs font-medium">CASH</span>
-            </button>
-          </div>
+          <Button
+            size="lg"
+            className="w-full gap-2"
+            onClick={() => setPaymentDialogOpen(true)}
+            disabled={orderItems.length === 0 && !pendingOrderId}
+          >
+            <CreditCard className="h-5 w-5" />
+            Thanh toán
+          </Button>
         </div>
       </div>
     </div>
+    
+    <AlertDialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{infoDialogTitle}</AlertDialogTitle>
+          {infoDialogDescription ? <AlertDialogDescription>{infoDialogDescription}</AlertDialogDescription> : null}
+        </AlertDialogHeader>
+        <AlertDialogFooter className="sm:justify-center">
+          <AlertDialogAction className="min-w-[160px]" onClick={() => setInfoDialogOpen(false)}>
+            Hoàn tất
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {cancelDialogMode === "payment" ? "Đã hủy thanh toán" : "Hủy đơn"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {cancelDialogMode === "payment"
+              ? "Đơn vẫn được giữ lại. Bạn có thể chọn CASH để thanh toán hoặc hủy đơn."
+              : "Bạn có chắc muốn hủy đơn này?"}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="sm:justify-center">
+          <AlertDialogCancel disabled={cancelPendingOrderMutation.isPending}>Quay lại</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={cancelPendingOrderMutation.isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={(e) => {
+              e.preventDefault();
+              cancelPendingOrderMutation.mutate();
+              setCancelDialogOpen(false);
+            }}
+          >
+            {cancelPendingOrderMutation.isPending ? "Đang hủy..." : "Hủy đơn"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+      <DialogContent
+        className="max-w-sm [&>button]:hidden"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>Chọn phương thức thanh toán</DialogTitle>
+          <DialogDescription>Chọn Tiền mặt hoặc QR để thanh toán.</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            onClick={() => {
+              setPaymentDialogOpen(false);
+              createCashOrderMutation.mutate();
+            }}
+            disabled={createCashOrderMutation.isPending || (orderItems.length === 0 && !pendingOrderId)}
+          >
+            Tiền mặt
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              setPaymentDialogOpen(false);
+
+              if (pendingOrderId) {
+                if (pendingPayosQrCode) {
+                  setQrDialogOpen(true);
+                } else {
+                  showInfoDialog(
+                    "Không thể tạo lại QR",
+                    "Đơn đang Pending nhưng không có dữ liệu QR để hiển thị. Vui lòng chọn Tiền mặt hoặc Hủy đơn."
+                  );
+                }
+                return;
+              }
+
+              createQrOrderMutation.mutate();
+            }}
+            disabled={createQrOrderMutation.isPending || orderItems.length === 0}
+          >
+            QR
+          </Button>
+        </div>
+
+        <DialogFooter className="sm:justify-center">
+          <Button
+            variant="destructive"
+            onClick={() => {
+              setPaymentDialogOpen(false);
+              setCancelDialogMode("order");
+              setCancelDialogOpen(true);
+            }}
+            disabled={cancelPendingOrderMutation.isPending || (!pendingOrderId && orderItems.length === 0)}
+          >
+            Hủy đơn
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+      <DialogContent
+        className="max-w-sm [&>button]:hidden"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>Quét QR để thanh toán</DialogTitle>
+          <DialogDescription>
+            Tổng thanh toán: <span className="font-medium">{formatVND(total)}</span>
+            {pendingPayosOrderCode ? <span className="block">Mã: {pendingPayosOrderCode}</span> : null}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex justify-center">
+          <div className="rounded-lg border bg-white p-4">
+            {pendingPayosQrCode ? <QRCode value={pendingPayosQrCode} size={220} /> : <div>Không có QR</div>}
+          </div>
+        </div>
+
+        <div className="text-center text-sm text-muted-foreground">
+          {paymentStatusQuery.isError ? (
+            "Không kiểm tra được trạng thái thanh toán."
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              Đang chờ thanh toán…
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button variant="outline" onClick={() => setQrDialogOpen(false)}>
+            Quay lại
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => paymentStatusQuery.refetch()}
+            disabled={paymentStatusQuery.isFetching}
+          >
+            Kiểm tra lại
+          </Button>
+          <Button
+            onClick={() => confirmPayosPaymentMutation.mutate()}
+            disabled={!pendingPayosOrderCode || confirmPayosPaymentMutation.isPending}
+          >
+            {confirmPayosPaymentMutation.isPending ? "Đang xác nhận…" : "Xác nhận thanh toán"}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              setQrDialogOpen(false);
+              setCancelDialogMode("order");
+              setCancelDialogOpen(true);
+            }}
+          >
+            Hủy đơn
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
