@@ -27,3 +27,11 @@ export function createPosOfflineOrder(body: CreateOfflineOrderRequest) {
     body,
   });
 }
+
+// Staff/POS/Manager
+export function createPosOfflineOrderCash(body: CreateOfflineOrderRequest) {
+  return apiRequest<{ orderId: Guid }>("/api/pos/orders/cash", {
+    method: "POST",
+    body,
+  });
+}

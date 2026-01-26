@@ -37,6 +37,10 @@ import ShiftManagement from "@/pages/admin/ShiftManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import ShiftDetail from "@/pages/admin/ShiftDetail";
 
+// PayOS return/cancel
+import PayosReturn from "@/pages/payos/PayosReturn";
+import PayosCancel from "@/pages/payos/PayosCancel";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +66,10 @@ const App = () => (
             <Route path="/pos/login" element={<Navigate to="/auth/pos" replace />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/pos" element={<POSLogin />} />
+
+            {/* PayOS redirects */}
+            <Route path="/payos/return" element={<PayosReturn />} />
+            <Route path="/payos/cancel" element={<PayosCancel />} />
 
             {/* Legacy student redirects */}
             <Route path="/home" element={<Navigate to="/student/home" replace />} />
