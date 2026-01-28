@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { menuItemsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useCart } from "@/lib/cart/CartContext";
+import { getVnHour } from "@/lib/datetime";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop";
@@ -26,7 +27,7 @@ function statusFromInventory(qty: number): MenuItem["status"] {
 }
 
 function getGreeting() {
-  const hour = new Date().getHours();
+  const hour = getVnHour() ?? new Date().getHours();
   if (hour < 12) return { text: "Good Morning", emoji: "☀️" };
   if (hour < 17) return { text: "Good Afternoon", emoji: "🌤️" };
   return { text: "Good Evening", emoji: "🌙" };

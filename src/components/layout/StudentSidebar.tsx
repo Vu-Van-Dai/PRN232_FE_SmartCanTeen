@@ -1,32 +1,14 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { LayoutGrid, Coffee, UtensilsCrossed, Cookie, Soup, LogOut, Wallet, ShoppingBag, User } from "lucide-react";
+import { LayoutGrid, UtensilsCrossed, LogOut, Wallet, ShoppingBag, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { categoriesApi } from "@/lib/api";
 
-function slugify(input: string): string {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
-
-function iconForCategory(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes("drink") || n.includes("beverage")) return Coffee;
-  if (n.includes("rice")) return UtensilsCrossed;
-  if (n.includes("noodle") || n.includes("soup")) return Soup;
-  if (n.includes("snack") || n.includes("dessert") || n.includes("cookie")) return Cookie;
-  return LayoutGrid;
-}
+const mainLinks = [{ name: "Menu", icon: LayoutGrid, path: "/student/menu" }];
 
 const accountLinks = [
   { name: "My Wallet", icon: Wallet, path: "/student/wallet" },
-  { name: "Orders", icon: ShoppingBag, path: "/student/orders" },
+  { name: "My Orders", icon: ShoppingBag, path: "/student/orders" },
   { name: "Profile", icon: User, path: "/student/profile" },
 ];
 
@@ -34,23 +16,6 @@ export function StudentSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const auth = useAuth();
-
-  const { data: apiCategories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: categoriesApi.getCategories,
-    staleTime: 60_000,
-  });
-
-  const categories = [
-    { name: "All Items", icon: LayoutGrid, path: "/student/menu" },
-    ...apiCategories
-      .filter((c) => c.isActive)
-      .map((c) => ({
-        name: c.name,
-        icon: iconForCategory(c.name),
-        path: `/student/menu/category/${slugify(c.name)}`,
-      })),
-  ];
   
   return (
     <aside className="w-60 bg-card border-r border-border flex flex-col h-screen sticky top-0">
@@ -64,16 +29,11 @@ export function StudentSidebar() {
         </div>
       </div>
       
-      {/* Categories */}
+      {/* Main */}
       <div className="p-4 flex-1">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 px-3">
-          Categories
-        </p>
         <nav className="space-y-1">
-          {categories.map((item) => {
-            const isActive = location.pathname === item.path || 
-              (item.path !== "/student/menu" && location.pathname.startsWith(item.path));
-            
+          {mainLinks.map((item) => {
+            const isActive = location.pathname === item.path || location.pathname.startsWith("/student/menu");
             return (
               <NavLink
                 key={item.name}

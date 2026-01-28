@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle, Info, Minus, Plus, QrCode, Trash2, Wallet } from "lucide-react";
+import { ArrowRight, Calendar as CalendarIcon, CheckCircle, Info, Minus, Plus, QrCode, Trash2, Wallet } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { ordersApi, walletApi } from "@/lib/api";
 import { useCart } from "@/lib/cart/CartContext";
@@ -13,10 +18,60 @@ function formatVND(amount: number) {
   return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
 }
 
+const CANTEEN_OPEN_MINUTES = 6 * 60; // 06:00
+const CANTEEN_CLOSE_MINUTES = 22 * 60; // 22:00
+const VN_OFFSET_MINUTES = 7 * 60; // UTC+7 (no DST)
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function minutesOfDay(h: number, m: number) {
+  return h * 60 + m;
+}
+
+function fmtVnYmd(date: Date) {
+  return `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}`;
+}
+
+function buildUtcMsFromVnSelection(date: Date, hour: number, minute: number) {
+  // Interpret selected Y-M-D and H:M as Vietnam local time, then convert to UTC.
+  const y = date.getFullYear();
+  const mon = date.getMonth() + 1;
+  const d = date.getDate();
+  return Date.UTC(y, mon - 1, d, hour - 7, minute, 0, 0);
+}
+
+function vnPartsFromUtcMs(utcMs: number) {
+  const shifted = new Date(utcMs + VN_OFFSET_MINUTES * 60_000);
+  return {
+    y: shifted.getUTCFullYear(),
+    m: shifted.getUTCMonth() + 1,
+    d: shifted.getUTCDate(),
+    h: shifted.getUTCHours(),
+    min: shifted.getUTCMinutes(),
+  };
+}
+
+function addDaysYmd(y: number, m: number, d: number, days: number) {
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + days);
+  return { y: base.getUTCFullYear(), m: base.getUTCMonth() + 1, d: base.getUTCDate() };
+}
+
+function ceilTo5MinutesUtc(utcMs: number) {
+  const step = 5 * 60_000;
+  return Math.ceil(utcMs / step) * step;
+}
+
 export default function StudentCart() {
   const navigate = useNavigate();
   const cart = useCart();
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "vnpay">("wallet");
+  const [pickupMode, setPickupMode] = useState<"asap" | "scheduled">("asap");
+  const [pickupDate, setPickupDate] = useState<Date | undefined>(undefined);
+  const [pickupHour, setPickupHour] = useState<string>("06");
+  const [pickupMinute, setPickupMinute] = useState<string>("00");
 
   const { data: walletMe } = useQuery({
     queryKey: ["wallet", "me"],
@@ -54,12 +109,85 @@ export default function StudentCart() {
     }
 
     try {
+      let pickupTime: string | null | undefined = null;
+
+      if (pickupMode === "scheduled") {
+        if (!pickupDate) {
+          toast({
+            title: "Thiếu thời gian nhận",
+            description: "Vui lòng chọn ngày và giờ nhận món.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const h = Number(pickupHour);
+        const mi = Number(pickupMinute);
+        if (!Number.isFinite(h) || !Number.isFinite(mi)) {
+          toast({
+            title: "Thời gian không hợp lệ",
+            description: "Vui lòng chọn lại giờ/phút.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const minUtcMs = Date.now() + 2 * 60_000;
+        let candidateUtcMs = buildUtcMsFromVnSelection(pickupDate, h, mi);
+        let didAdjust = false;
+
+        if (candidateUtcMs < minUtcMs) {
+          candidateUtcMs = ceilTo5MinutesUtc(minUtcMs);
+          didAdjust = true;
+        }
+
+        let p = vnPartsFromUtcMs(candidateUtcMs);
+        const mins = minutesOfDay(p.h, p.min);
+        if (mins < CANTEEN_OPEN_MINUTES) {
+          candidateUtcMs = Date.UTC(p.y, p.m - 1, p.d, 6 - 7, 0, 0, 0);
+          didAdjust = true;
+        } else if (mins > CANTEEN_CLOSE_MINUTES) {
+          const next = addDaysYmd(p.y, p.m, p.d, 1);
+          candidateUtcMs = Date.UTC(next.y, next.m - 1, next.d, 6 - 7, 0, 0, 0);
+          didAdjust = true;
+        }
+
+        if (candidateUtcMs < minUtcMs) {
+          candidateUtcMs = ceilTo5MinutesUtc(minUtcMs);
+          didAdjust = true;
+          p = vnPartsFromUtcMs(candidateUtcMs);
+          if (minutesOfDay(p.h, p.min) > CANTEEN_CLOSE_MINUTES) {
+            const next = addDaysYmd(p.y, p.m, p.d, 1);
+            candidateUtcMs = Date.UTC(next.y, next.m - 1, next.d, 6 - 7, 0, 0, 0);
+          }
+        }
+
+        const final = vnPartsFromUtcMs(candidateUtcMs);
+        if (didAdjust) {
+          setPickupDate(new Date(final.y, final.m - 1, final.d));
+          setPickupHour(pad2(final.h));
+          setPickupMinute(pad2(final.min - (final.min % 5)));
+          toast({
+            title: "Đã điều chỉnh thời gian",
+            description: "Thời gian nhận được tự động đưa về khung 06:00–22:00 và đủ thời gian chuẩn bị.",
+          });
+        }
+
+        pickupTime = new Date(candidateUtcMs).toISOString();
+      }
+
       const res = await ordersApi.createOnlineOrder({
+        pickupTime,
         items: cart.lines.map((l) => ({ itemId: l.id, quantity: l.quantity })),
       });
 
       await ordersApi.payOnlineOrderWithWallet(res.orderId);
       cart.clear();
+
+      setPickupMode("asap");
+      setPickupDate(undefined);
+      setPickupHour("06");
+      setPickupMinute("00");
 
       toast({
         title: "Order placed",
@@ -180,7 +308,90 @@ export default function StudentCart() {
               </div>
             </div>
 
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Payment Method</p>
+              <div className="mt-6">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                  Thời gian nhận món
+                </p>
+
+                <RadioGroup value={pickupMode} onValueChange={(v) => setPickupMode(v as "asap" | "scheduled")}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="asap" id="pickup-asap" />
+                    <Label htmlFor="pickup-asap">Lấy ngay</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="scheduled" id="pickup-scheduled" />
+                      <Label htmlFor="pickup-scheduled">Hẹn giờ đến lấy</Label>
+                  </div>
+                </RadioGroup>
+
+                {pickupMode === "scheduled" && (
+                  <div className="mt-3">
+                    <Label className="text-sm">Chọn ngày</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn(
+                            "mt-2 w-full justify-start text-left font-normal",
+                            !pickupDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {pickupDate ? fmtVnYmd(pickupDate) : "Chọn ngày"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={pickupDate} onSelect={setPickupDate} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-sm">Giờ (24h)</Label>
+                        <Select value={pickupHour} onValueChange={setPickupHour}>
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="Giờ" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 24 }).map((_, i) => (
+                              <SelectItem key={i} value={pad2(i)}>
+                                {pad2(i)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm">Phút</Label>
+                        <Select value={pickupMinute} onValueChange={setPickupMinute}>
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="Phút" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 12 }).map((_, i) => {
+                              const v = pad2(i * 5);
+                              return (
+                                <SelectItem key={v} value={v}>
+                                  {v}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Giờ mở cửa từ 06:00–22:00 hàng ngày (giờ Việt Nam).
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+            <p className="mt-4 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 ">Payment Method</p>
 
             <div className="space-y-2 mb-4">
               <button
@@ -237,19 +448,6 @@ export default function StudentCart() {
               </a>
               .
             </p>
-          </div>
-
-          <div className="bg-muted/50 rounded-xl p-4 flex items-start gap-3">
-            <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium">Need help with your order?</p>
-              <p className="text-xs text-muted-foreground">
-                Contact the canteen support at{" "}
-                <a href="mailto:support@schoolcanteen.com" className="text-primary underline">
-                  support@schoolcanteen.com
-                </a>
-              </p>
-            </div>
           </div>
         </div>
       </div>
