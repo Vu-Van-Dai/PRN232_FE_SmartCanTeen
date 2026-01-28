@@ -8,6 +8,7 @@ import { walletApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { formatVnDateTime } from "@/lib/datetime";
 
 const topUpAmounts = [20000, 50000, 100000];
 
@@ -212,7 +213,6 @@ export default function StudentWallet() {
             {txRes.items.map((tx) => {
               const signed = typeSignedAmount(tx.type, tx.amount);
               const meta = statusLabel(tx.status);
-              const created = new Date(tx.createdAt);
               const isDebit = signed < 0;
 
               const desc = tx.orderId ? "Order payment" : tx.type === 0 ? "Wallet top-up" : "Wallet transaction";
@@ -226,7 +226,7 @@ export default function StudentWallet() {
                       <Badge className={meta.className}>{meta.text}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {created.toLocaleString("vi-VN")} • {ref}
+                      {formatVnDateTime(tx.createdAt)} • {ref}
                     </p>
                   </div>
 

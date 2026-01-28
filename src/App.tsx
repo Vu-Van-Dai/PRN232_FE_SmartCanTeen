@@ -21,6 +21,8 @@ import StudentHome from "@/pages/student/StudentHome";
 import StudentMenu from "@/pages/student/StudentMenu";
 import StudentWallet from "@/pages/student/StudentWallet";
 import StudentCart from "@/pages/student/StudentCart";
+import StudentMyOrders from "@/pages/student/StudentMyOrders";
+import StudentProfile from "@/pages/student/StudentProfile";
 
 // Staff Pages
 import POSTerminal from "@/pages/staff/POSTerminal";
@@ -89,8 +91,8 @@ const App = () => (
                   <Route path="/student/menu" element={<StudentMenu />} />
                   <Route path="/student/menu/category/:category" element={<StudentMenu />} />
                   <Route path="/student/wallet" element={<StudentWallet />} />
-                  <Route path="/student/orders" element={<StudentMenu />} />
-                  <Route path="/student/profile" element={<StudentMenu />} />
+                  <Route path="/student/orders" element={<StudentMyOrders />} />
+                  <Route path="/student/profile" element={<StudentProfile />} />
                   <Route path="/student/cart" element={<StudentCart />} />
                 </Route>
               </Route>
@@ -108,12 +110,16 @@ const App = () => (
                 </Route>
               </Route>
 
-              {/* Kitchen */}
-              <Route element={<RequireRoles anyOf={["StaffKitchen", "Staff", "Manager", "AdminSystem"]} />}>
+              {/* Kitchen - Coordination (Order board only) */}
+              <Route element={<RequireRoles anyOf={["StaffCoordination", "Manager", "AdminSystem"]} />}>
                 <Route element={<KitchenLayout />}>
                   <Route path="/kitchen" element={<Navigate to="/kitchen/board" replace />} />
                   <Route path="/kitchen/board" element={<KitchenDashboard />} />
                 </Route>
+              </Route>
+
+              {/* Kitchen - Kitchen staff (KDS only) */}
+              <Route element={<RequireRoles anyOf={["StaffKitchen", "Manager", "AdminSystem"]} />}>
                 <Route path="/kitchen/kds" element={<KitchenKDS />} />
               </Route>
 

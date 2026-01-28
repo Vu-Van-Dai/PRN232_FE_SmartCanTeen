@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { hasAnyRole } from "@/lib/auth/role-routing";
 import { ApiError } from "@/lib/api/http";
 import * as shiftsApi from "@/lib/api/shifts";
+import { formatVnTime } from "@/lib/datetime";
 
 const campusLocations = [
   { id: 1, name: "North Campus Main Hall" },
@@ -43,7 +44,7 @@ export default function POSLogin() {
       const next = await auth.login(email.trim(), password);
       const roles = next.user?.roles ?? [];
 
-      const allowed = hasAnyRole(roles, ["StaffPOS", "Staff", "StaffKitchen"]);
+      const allowed = hasAnyRole(roles, ["StaffPOS", "Staff", "StaffKitchen", "StaffCoordination"]);
       if (!allowed) {
         auth.logout();
         toast({
@@ -61,6 +62,7 @@ export default function POSLogin() {
       const isPosStaff = hasAnyRole(roles, ["StaffPOS"]);
       const isStaffGeneric = hasAnyRole(roles, ["Staff"]);
       const isKitchenStaff = hasAnyRole(roles, ["StaffKitchen"]);
+      const isCoordinationStaff = hasAnyRole(roles, ["StaffCoordination"]);
 
       if (isPosStaff) {
         try {
@@ -89,6 +91,11 @@ export default function POSLogin() {
         return;
       }
 
+      if (isCoordinationStaff) {
+        navigate("/kitchen/board", { replace: true });
+        return;
+      }
+
       if (isStaffGeneric) {
         navigate("/pos", { replace: true });
         return;
@@ -108,11 +115,7 @@ export default function POSLogin() {
     }
   };
 
-  const currentTime = new Date().toLocaleTimeString("en-US", { 
-    hour: "2-digit", 
-    minute: "2-digit",
-    hour12: true 
-  });
+  const currentTime = formatVnTime(new Date());
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">

@@ -235,6 +235,23 @@ export type ToggleUserResponse = {
   isActive: boolean;
 };
 
+export type StudentOrderItemDto = {
+  itemId: Guid;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export type StudentOrderDto = {
+  id: Guid;
+  createdAt: string;
+  pickupTime: string | null;
+  status: number;
+  totalPrice: number;
+  items: StudentOrderItemDto[];
+  pickedAtCounter?: string | null;
+};
+
 export const hubs = {
   order: "/hubs/order",
   management: "/hubs/management",

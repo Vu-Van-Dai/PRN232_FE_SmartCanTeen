@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import * as kitchenApi from "@/lib/api/kitchen";
 import type { KitchenOrderDto, KitchenOrdersResponse } from "@/lib/api/types";
+import { formatVnTime } from "@/lib/datetime";
 
 interface OrderItem {
   quantity: number;
@@ -27,7 +28,7 @@ interface Order {
 function formatDueTimeLocal(iso: string) {
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "";
-  return new Date(ms).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return formatVnTime(ms);
 }
 
 function minutesUntil(iso: string) {
@@ -119,7 +120,7 @@ export default function KitchenKDS() {
             id: `#${x.id.slice(0, 4)}`,
             rawId: x.id,
             status: "cooking",
-            source: "ASAP",
+            source: "Lấy ngay",
             server: x.orderedBy,
             timeRemaining: "COOKING",
             items: x.items.map((i) => ({ quantity: i.quantity, name: i.name })),
@@ -156,11 +157,7 @@ export default function KitchenKDS() {
       .filter((p) => p.mins > 0 && p.mins <= 60)
       .sort((a, b) => a.mins - b.mins);
   }, [data]);
-  const currentTime = new Date().toLocaleTimeString("en-US", { 
-    hour: "2-digit", 
-    minute: "2-digit",
-    hour12: true 
-  });
+  const currentTime = formatVnTime(new Date());
 
   const getStatusBadge = (status: Order["status"]) => {
     switch (status) {
@@ -188,20 +185,12 @@ export default function KitchenKDS() {
         </div>
         
         <div className="flex items-center gap-3">
-          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 gap-1.5 px-3 py-1">
-            <Wifi className="w-3 h-3" />
-            ONLINE
-          </Badge>
-          
+      
           <div className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-full">
             <Clock className="w-4 h-4 text-slate-400" />
             <span className="font-medium text-sm">{currentTime}</span>
           </div>
           
-          <Avatar className="h-9 w-9 border-2 border-slate-700">
-            <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" />
-            <AvatarFallback>KC</AvatarFallback>
-          </Avatar>
         </div>
       </header>
 

@@ -1,4 +1,4 @@
-import { apiRequest } from "./http";
+import { ApiError, apiRequest } from "./http";
 import type {
   CreateOfflineOrderRequest,
   CreateOfflineOrderResponse,
@@ -6,6 +6,7 @@ import type {
   CreateOnlineOrderResponse,
   Guid,
   PosPaymentStatusResponse,
+  StudentOrderDto,
 } from "./types";
 
 // Student/Parent
@@ -54,4 +55,17 @@ export function cancelExistingPosOrder(orderId: Guid) {
 // Staff/POS/Manager
 export function getPosOrderPaymentStatus(orderId: Guid) {
   return apiRequest<PosPaymentStatusResponse>(`/api/pos/orders/${orderId}/payment-status`);
+}
+
+// Student/Parent
+// Note: BE endpoint may not exist yet; return [] on 404/501 so UI still works.
+export async function getMyOrders() {
+  try {
+    return await apiRequest<StudentOrderDto[]>("/api/orders/me");
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 404 || err.status === 501)) {
+      return [];
+    }
+    throw err;
+  }
 }

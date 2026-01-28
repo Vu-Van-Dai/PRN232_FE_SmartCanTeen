@@ -2,16 +2,18 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, MonitorPlay, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { hasAnyRole } from "@/lib/auth/role-routing";
 
 const menuItems = [
-  { name: "Orders Board", icon: LayoutDashboard, path: "/kitchen/board" },
-  { name: "KDS (Full Screen)", icon: MonitorPlay, path: "/kitchen/kds" },
+  { name: "Orders Board", icon: LayoutDashboard, path: "/kitchen/board", roles: ["StaffCoordination", "Manager", "AdminSystem"] },
+  { name: "KDS (Full Screen)", icon: MonitorPlay, path: "/kitchen/kds", roles: ["StaffKitchen", "Manager", "AdminSystem"] },
 ];
 
 export function KitchenSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const auth = useAuth();
+  const roles = auth.user?.roles ?? [];
   
   return (
     <aside className="w-60 bg-card border-r border-border flex flex-col h-screen sticky top-0">
@@ -31,7 +33,9 @@ export function KitchenSidebar() {
       {/* Menu */}
       <div className="p-4 flex-1">
         <nav className="space-y-1">
-          {menuItems.map((item) => {
+          {menuItems
+            .filter((item) => hasAnyRole(roles, item.roles))
+            .map((item) => {
             const isActive = location.pathname === item.path ||
               (item.path !== "/kitchen" && location.pathname.startsWith(item.path));
             

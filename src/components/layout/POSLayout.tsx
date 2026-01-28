@@ -18,7 +18,7 @@ export function POSLayout() {
             </div>
             <div>
               <p className="font-semibold text-sm">Canteen POS</p>
-              <p className="text-xs text-muted-foreground">Staff Portal • Terminal 04</p>
+              <p className="text-xs text-muted-foreground">Staff Portal </p>
             </div>
           </div>
           
@@ -33,16 +33,6 @@ export function POSLayout() {
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-medium">Sarah Jenkins</p>
-              <p className="text-xs text-muted-foreground">Shift Manager</p>
-            </div>
-            <Avatar className="h-9 w-9">
-              <AvatarImage src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop" />
-              <AvatarFallback>SJ</AvatarFallback>
-            </Avatar>
-          </div>
           
           <Button
             variant="default"
