@@ -10,7 +10,33 @@ export class ApiError extends Error {
   }
 }
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+function extractErrorMessage(parsedBody: unknown, fallback: string): string {
+  if (typeof parsedBody === "string" && parsedBody.trim()) return parsedBody;
+
+  if (parsedBody && typeof parsedBody === "object") {
+    const obj = parsedBody as Record<string, unknown>;
+    const detail = typeof obj.detail === "string" ? obj.detail.trim() : "";
+    const title = typeof obj.title === "string" ? obj.title.trim() : "";
+    const message = typeof obj.message === "string" ? obj.message.trim() : "";
+
+    if (detail) return detail;
+    if (message) return message;
+    if (title) return title;
+
+    // FluentValidation-style or ASP.NET model state errors
+    const errors = obj.errors as unknown;
+    if (errors && typeof errors === "object") {
+      const firstKey = Object.keys(errors as Record<string, unknown>)[0];
+      const firstVal = firstKey ? (errors as Record<string, unknown>)[firstKey] : undefined;
+      if (Array.isArray(firstVal) && typeof firstVal[0] === "string") return String(firstVal[0]);
+      if (typeof firstVal === "string") return firstVal;
+    }
+  }
+
+  return fallback;
+}
+
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export type ApiConfig = {
   baseUrl: string;
@@ -89,10 +115,8 @@ export async function apiRequest<T>(
   const parsedBody = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null);
 
   if (!res.ok) {
-    const msg =
-      typeof parsedBody === "string" && parsedBody
-        ? parsedBody
-        : `HTTP ${res.status} ${res.statusText}`;
+    const fallback = `HTTP ${res.status} ${res.statusText}`;
+    const msg = extractErrorMessage(parsedBody, fallback);
     throw new ApiError(msg, res.status, parsedBody);
   }
 

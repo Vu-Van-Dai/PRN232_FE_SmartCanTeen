@@ -9,5 +9,6 @@ export * as adminUsersApi from "./admin-users";
 export * as staffRolesApi from "./staff-roles";
 export * as walletApi from "./wallet";
 export * as inventoryApi from "./inventory";
+export * as usersApi from "./users";
 export * from "./types";
 export * from "./http";
