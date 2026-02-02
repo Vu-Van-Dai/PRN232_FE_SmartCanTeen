@@ -12,6 +12,26 @@ export type LoginResponse = {
   expiredAt: string;
 };
 
+export type ChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type MeProfileResponse = {
+  id: Guid;
+  email: string;
+  fullName: string | null;
+  studentCode: string | null;
+  avatarUrl: string | null;
+  orderReadyNotificationsEnabled: boolean;
+  roles: string[];
+};
+
+export type UpdateMeProfileRequest = {
+  avatarUrl?: string | null;
+  orderReadyNotificationsEnabled?: boolean;
+};
+
 export type CategoryResponse = {
   id: Guid;
   name: string;

@@ -1,5 +1,5 @@
 import { apiRequest } from "./http";
-import type { LoginRequest, LoginResponse } from "./types";
+import type { ChangePasswordRequest, LoginRequest, LoginResponse } from "./types";
 
 export async function login(request: LoginRequest): Promise<LoginResponse> {
   const res = await apiRequest<LoginResponse>("/api/auth/login", {
@@ -24,4 +24,11 @@ export function logout() {
   } catch {
     // ignore
   }
+}
+
+export async function changePassword(request: ChangePasswordRequest): Promise<void> {
+  await apiRequest<void>("/api/auth/change-password", {
+    method: "POST",
+    body: request,
+  });
 }

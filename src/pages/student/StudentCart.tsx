@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { ordersApi, walletApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/http";
 import { useCart } from "@/lib/cart/CartContext";
 import { cn } from "@/lib/utils";
 
@@ -196,12 +197,42 @@ export default function StudentCart() {
 
       navigate("/student/orders", { replace: true });
     } catch (err) {
+      // Provide clearer error details (status + message + actionable hint).
+      if (err instanceof ApiError) {
+        console.error("Checkout API error", { status: err.status, body: err.body });
+
+        const rawMessage = err.message || "Checkout failed";
+        const missingMatch = /item\s+([0-9a-fA-F-]{36})\s+not\s+found/i.exec(rawMessage);
+        const missingId = missingMatch?.[1]?.toLowerCase();
+        const missingLine = missingId
+          ? cart.lines.find((l) => l.id.toLowerCase() === missingId)
+          : undefined;
+
+        if (missingId) {
+          // Cart has a stale item (deleted/disabled in menu). Remove it to help user recover.
+          cart.removeItem(missingId);
+
+          toast({
+            title: `Checkout failed (HTTP ${err.status})`,
+            description: missingLine
+              ? `Món "${missingLine.name}" không còn tồn tại trong menu. Đã tự động xoá khỏi giỏ hàng.`
+              : `Item ${missingId} không còn tồn tại trong menu. Đã tự động xoá khỏi giỏ hàng.`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        toast({
+          title: `Checkout failed (HTTP ${err.status})`,
+          description: rawMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const msg = err instanceof Error ? err.message : "Checkout failed";
-      toast({
-        title: "Checkout failed",
-        description: msg,
-        variant: "destructive",
-      });
+      console.error("Checkout error", err);
+      toast({ title: "Checkout failed", description: msg, variant: "destructive" });
     }
   };
 
