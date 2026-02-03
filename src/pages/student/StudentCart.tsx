@@ -134,44 +134,27 @@ export default function StudentCart() {
         }
 
         const minUtcMs = Date.now() + 2 * 60_000;
-        let candidateUtcMs = buildUtcMsFromVnSelection(pickupDate, h, mi);
-        let didAdjust = false;
+        const candidateUtcMs = buildUtcMsFromVnSelection(pickupDate, h, mi);
 
+        // Do NOT auto-adjust invalid times; just notify the user.
         if (candidateUtcMs < minUtcMs) {
-          candidateUtcMs = ceilTo5MinutesUtc(minUtcMs);
-          didAdjust = true;
-        }
-
-        let p = vnPartsFromUtcMs(candidateUtcMs);
-        const mins = minutesOfDay(p.h, p.min);
-        if (mins < CANTEEN_OPEN_MINUTES) {
-          candidateUtcMs = Date.UTC(p.y, p.m - 1, p.d, 6 - 7, 0, 0, 0);
-          didAdjust = true;
-        } else if (mins > CANTEEN_CLOSE_MINUTES) {
-          const next = addDaysYmd(p.y, p.m, p.d, 1);
-          candidateUtcMs = Date.UTC(next.y, next.m - 1, next.d, 6 - 7, 0, 0, 0);
-          didAdjust = true;
-        }
-
-        if (candidateUtcMs < minUtcMs) {
-          candidateUtcMs = ceilTo5MinutesUtc(minUtcMs);
-          didAdjust = true;
-          p = vnPartsFromUtcMs(candidateUtcMs);
-          if (minutesOfDay(p.h, p.min) > CANTEEN_CLOSE_MINUTES) {
-            const next = addDaysYmd(p.y, p.m, p.d, 1);
-            candidateUtcMs = Date.UTC(next.y, next.m - 1, next.d, 6 - 7, 0, 0, 0);
-          }
-        }
-
-        const final = vnPartsFromUtcMs(candidateUtcMs);
-        if (didAdjust) {
-          setPickupDate(new Date(final.y, final.m - 1, final.d));
-          setPickupHour(pad2(final.h));
-          setPickupMinute(pad2(final.min - (final.min % 5)));
           toast({
-            title: "Đã điều chỉnh thời gian",
-            description: "Thời gian nhận được tự động đưa về khung 06:00–22:00 và đủ thời gian chuẩn bị.",
+            title: "Thời gian nhận chưa hợp lệ",
+            description: "Vui lòng chọn thời gian nhận sau hiện tại ít nhất 2 phút.",
+            variant: "destructive",
           });
+          return;
+        }
+
+        const p = vnPartsFromUtcMs(candidateUtcMs);
+        const mins = minutesOfDay(p.h, p.min);
+        if (mins < CANTEEN_OPEN_MINUTES || mins > CANTEEN_CLOSE_MINUTES) {
+          toast({
+            title: "Ngoài giờ hoạt động",
+            description: "Nhà ăn chỉ nhận đặt trước trong khung 06:00–22:00. Vui lòng chọn lại.",
+            variant: "destructive",
+          });
+          return;
         }
 
         pickupTime = new Date(candidateUtcMs).toISOString();

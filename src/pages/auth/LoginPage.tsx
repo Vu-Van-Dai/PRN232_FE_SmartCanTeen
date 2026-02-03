@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, User, Lock, GraduationCap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -159,9 +159,9 @@ export default function LoginPage() {
               </button>
             </div>
             <div className="text-right mt-2">
-              <a href="#" className="text-sm font-medium text-orange-500 hover:text-orange-600">
-                Forgot password?
-              </a>
+              <Link to="/auth/forgot-password" className="text-sm font-medium text-orange-500 hover:text-orange-600">
+                Quên mật khẩu?
+              </Link>
             </div>
           </div>
 

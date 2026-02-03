@@ -20,7 +20,11 @@ export function decodeJwtPayload(token: string): JwtPayload | null {
 
   try {
     const payloadBase64 = base64UrlToBase64(parts[1]);
-    const json = atob(payloadBase64);
+    const bin = atob(payloadBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    const json = new TextDecoder("utf-8").decode(bytes);
     const parsed = safeJsonParse(json);
     if (!parsed || typeof parsed !== "object") return null;
     return parsed as JwtPayload;
@@ -103,4 +107,14 @@ export function getJwtExpiryEpochSeconds(payload: JwtPayload | null): number | n
     if (Number.isFinite(n)) return n;
   }
   return null;
+}
+
+export function getJwtMustChangePassword(payload: JwtPayload | null): boolean {
+  if (!payload) return false;
+
+  const value = payload.must_change_pwd;
+  if (value === true) return true;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") return value === "1" || value.toLowerCase() === "true";
+  return false;
 }

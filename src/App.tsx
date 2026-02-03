@@ -9,12 +9,15 @@ import { RequireAuth, RequireRoles, RootRedirect } from "@/routes/auth-guards";
 // Layouts
 import { StudentLayout } from "@/components/layout/StudentLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { ManagerLayout } from "@/components/layout/ManagerLayout";
 import { KitchenLayout } from "@/components/layout/KitchenLayout";
 import { POSLayout } from "@/components/layout/POSLayout";
 
 // Auth Pages
 import LoginPage from "@/pages/auth/LoginPage";
 import POSLogin from "@/pages/auth/POSLogin";
+import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
+import ForceChangePasswordPage from "@/pages/auth/ForceChangePasswordPage";
 
 // Student Pages
 import StudentHome from "@/pages/student/StudentHome";
@@ -30,14 +33,23 @@ import ShiftClose from "@/pages/staff/ShiftClose";
 import ShiftCountCash from "@/pages/staff/ShiftCountCash";
 import KitchenDashboard from "@/pages/staff/KitchenDashboard";
 import KitchenKDS from "@/pages/staff/KitchenKDS";
+import DrinkBoard from "@/pages/staff/DrinkBoard";
 
 // Admin Pages
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import MenuManagement from "@/pages/admin/MenuManagement";
+import MenuManagementReadOnly from "@/pages/admin/MenuManagementReadOnly";
 import ReportsPage from "@/pages/admin/ReportsPage";
 import ShiftManagement from "@/pages/admin/ShiftManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import ShiftDetail from "@/pages/admin/ShiftDetail";
+import PromotionsManagement from "@/pages/admin/PromotionsManagement";
+
+// Manager Pages
+import CategoryManagement from "@/pages/manager/CategoryManagement";
+import ManagerReportsPage from "@/pages/manager/ReportsPage";
+import ManagerDashboardPage from "@/pages/manager/DashboardPage";
+import ScreenSettingsPage from "@/pages/manager/ScreenSettingsPage";
 
 // PayOS return/cancel
 import PayosReturn from "@/pages/payos/PayosReturn";
@@ -68,6 +80,7 @@ const App = () => (
             <Route path="/pos/login" element={<Navigate to="/auth/pos" replace />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/pos" element={<POSLogin />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
 
             {/* PayOS redirects */}
             <Route path="/payos/return" element={<PayosReturn />} />
@@ -83,6 +96,8 @@ const App = () => (
 
             {/* Protected app */}
             <Route element={<RequireAuth />}>
+              <Route path="/auth/force-change-password" element={<ForceChangePasswordPage />} />
+
               {/* Student */}
               <Route element={<RequireRoles anyOf={["Student", "Parent"]} />}>
                 <Route element={<StudentLayout />}>
@@ -97,16 +112,28 @@ const App = () => (
                 </Route>
               </Route>
 
-              {/* Admin / Manager */}
-              <Route element={<RequireRoles anyOf={["AdminSystem", "Manager"]} />}>
+              {/* Admin */}
+              <Route element={<RequireRoles anyOf={["AdminSystem"]} />}>
                 <Route element={<AdminLayout />}>
                   <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/admin/menu" element={<MenuManagement />} />
+                  <Route path="/admin/menu" element={<MenuManagementReadOnly />} />
+                  <Route path="/admin/promotions" element={<PromotionsManagement />} />
                   <Route path="/admin/reports" element={<ReportsPage />} />
                   <Route path="/admin/users" element={<UserManagement />} />
                   <Route path="/admin/shift/:id" element={<ShiftDetail />} />
                   <Route path="/admin/staff" element={<UserManagement />} />
                   <Route path="/admin/settings" element={<AdminDashboard />} />
+                </Route>
+              </Route>
+
+              {/* Manager */}
+              <Route element={<RequireRoles anyOf={["Manager"]} />}>
+                <Route element={<ManagerLayout />}>
+                  <Route path="/manager" element={<ManagerDashboardPage />} />
+                  <Route path="/manager/menu" element={<MenuManagement />} />
+                  <Route path="/manager/categories" element={<CategoryManagement />} />
+                  <Route path="/manager/reports" element={<ManagerReportsPage />} />
+                  <Route path="/manager/settings" element={<ScreenSettingsPage />} />
                 </Route>
               </Route>
 
@@ -121,6 +148,14 @@ const App = () => (
               {/* Kitchen - Kitchen staff (KDS only) */}
               <Route element={<RequireRoles anyOf={["StaffKitchen", "Manager", "AdminSystem"]} />}>
                 <Route path="/kitchen/kds" element={<KitchenKDS />} />
+              </Route>
+
+              {/* Drink station */}
+              <Route element={<RequireRoles anyOf={["StaffDrink", "Manager", "AdminSystem"]} />}>
+                <Route element={<KitchenLayout />}>
+                  <Route path="/drink" element={<Navigate to="/drink/board" replace />} />
+                  <Route path="/drink/board" element={<DrinkBoard />} />
+                </Route>
               </Route>
 
               {/* POS */}

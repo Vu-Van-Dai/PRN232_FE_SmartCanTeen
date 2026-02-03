@@ -1,189 +1,448 @@
-import { useState } from "react";
-import { Search, Plus, Users, CheckCircle, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, RefreshCw, Search, Shield, Trash2, UserPlus, UserRoundCog } from "lucide-react";
+import { adminUsersApi } from "@/lib/api";
+import type { AdminUserListItem, CreateUserRequest } from "@/lib/api/types";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-interface User {
-  id: string;
-  fullName: string;
-  role: "Student" | "Staff" | "Manager";
-  status: "Active" | "Locked";
-  avatar: string;
+function getPrimaryRole(roles: string[]): string {
+  const normalized = new Set(roles.map((r) => r.trim()));
+
+  // Any staff sub-role should still display as Staff (primary)
+  if (normalized.has("Staff") || normalized.has("StaffPOS") || normalized.has("StaffKitchen") || normalized.has("StaffCoordination")) {
+    return "Staff";
+  }
+
+  const priority = [
+    "AdminSystem",
+    "Manager",
+    "Student",
+    "Parent",
+  ];
+  for (const r of priority) {
+    if (normalized.has(r)) return r;
+  }
+  return roles[0] ?? "";
 }
 
-const users: User[] = [
-  { id: "2023001", fullName: "Sarah Jenkins", role: "Student", status: "Active", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=50&h=50&fit=crop" },
-  { id: "2023002", fullName: "Mike Ross", role: "Staff", status: "Active", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop" },
-  { id: "2023003", fullName: "Louis Litt", role: "Staff", status: "Locked", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop" },
-  { id: "2023004", fullName: "Harvey Specter", role: "Manager", status: "Active", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&h=50&fit=crop" },
-  { id: "2023005", fullName: "Rachel Paulson", role: "Student", status: "Active", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop" },
-];
-
-const stats = [
-  { label: "Total Users", value: "1,240", icon: Users, iconBg: "bg-info/10", iconColor: "text-info" },
-  { label: "Active Accounts", value: "1,200", icon: CheckCircle, iconBg: "bg-primary/10", iconColor: "text-primary" },
-  { label: "Locked Accounts", value: "40", icon: Lock, iconBg: "bg-destructive/10", iconColor: "text-destructive" },
-];
+function statusLabel(isActive: boolean) {
+  return isActive ? "Hoạt động" : "Bị khóa";
+}
 
 export default function UserManagement() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          user.id.includes(searchQuery);
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    const matchesStatus = statusFilter === "all" || user.status === statusFilter;
-    return matchesSearch && matchesRole && matchesStatus;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateUserRequest>({
+    email: "",
+    fullName: "",
+    role: "Student",
   });
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  const usersQuery = useQuery({
+    queryKey: ["adminUsers", roleFilter],
+    queryFn: () => adminUsersApi.getAdminUsers(roleFilter === "all" ? undefined : roleFilter),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (id: string) => adminUsersApi.toggleUserActive(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["adminUsers"] });
+      toast({ title: "Cập nhật trạng thái thành công" });
+    },
+    onError: (err) => {
+      toast({
+        title: "Thất bại",
+        description: err instanceof Error ? err.message : "Không thể cập nhật trạng thái",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetPwdMutation = useMutation({
+    mutationFn: (id: string) => adminUsersApi.resetUserPassword(id),
+    onSuccess: async () => {
+      toast({
+        title: "Đã đặt lại mật khẩu",
+        description: "Hệ thống đã gửi email chứa mật khẩu tạm thời.",
+      });
+    },
+    onError: (err) => {
+      toast({
+        title: "Thất bại",
+        description: err instanceof Error ? err.message : "Không thể đặt lại mật khẩu",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminUsersApi.deleteUser(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["adminUsers"] });
+      toast({ title: "Đã xóa tài khoản" });
+    },
+    onError: (err) => {
+      toast({
+        title: "Thất bại",
+        description: err instanceof Error ? err.message : "Không thể xóa tài khoản",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (body: CreateUserRequest) => adminUsersApi.createAdminUser(body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["adminUsers"] });
+      setIsCreateOpen(false);
+      setCreateForm({ email: "", fullName: "", role: "Student" });
+      toast({
+        title: "Tạo tài khoản thành công",
+        description: "Hệ thống đã gửi email chứa mật khẩu tạm thời.",
+      });
+    },
+    onError: (err) => {
+      toast({
+        title: "Thất bại",
+        description: err instanceof Error ? err.message : "Không thể tạo tài khoản",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredUsers = useMemo(() => {
+    const users = usersQuery.data ?? [];
+    const q = searchQuery.trim().toLowerCase();
+    return users.filter((u) => {
+      const primaryRole = getPrimaryRole(u.roles ?? []);
+      const matchesSearch =
+        !q ||
+        (u.email ?? "").toLowerCase().includes(q) ||
+        (u.fullName ?? "").toLowerCase().includes(q) ||
+        (u.id ?? "").toLowerCase().includes(q);
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && u.isActive) ||
+        (statusFilter === "locked" && !u.isActive);
+
+      // roleFilter is server-side for performance, but keep client-side as fallback
+      const matchesRoleClient = roleFilter === "all" || primaryRole === roleFilter;
+
+      return matchesSearch && matchesStatus && matchesRoleClient;
+    });
+  }, [usersQuery.data, searchQuery, roleFilter, statusFilter]);
+
+  const stats = useMemo(() => {
+    const users = usersQuery.data ?? [];
+    const total = users.length;
+    const active = users.filter((u) => u.isActive).length;
+    const locked = total - active;
+    return { total, active, locked };
+  }, [usersQuery.data]);
+
+  const roleOptions = ["Student", "Parent", "Staff", "Manager"];
+
+  const onCreate = async () => {
+    const email = createForm.email.trim();
+    const fullName = createForm.fullName.trim();
+    const role = createForm.role;
+
+    if (!email || !fullName || !role) {
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng nhập Email, Họ tên và Vai trò.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await createMutation.mutateAsync({ email, fullName, role });
+  };
+
+  const renderRoleBadge = (user: AdminUserListItem) => {
+    const primary = getPrimaryRole(user.roles ?? []);
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant="secondary" className="gap-1">
+          <Shield className="w-3.5 h-3.5" />
+          {primary}
+        </Badge>
+      </div>
+    );
   };
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <span className="text-primary hover:underline cursor-pointer">Home</span>
-        <span>/</span>
-        <span className="text-primary hover:underline cursor-pointer">Admin</span>
-        <span>/</span>
-        <span>User Management</span>
-      </div>
-
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage student, staff, and manager accounts, roles, and permissions.
-          </p>
+          <h1 className="text-3xl font-bold">Quản lý người dùng</h1>
+          <p className="text-muted-foreground mt-1">Lấy dữ liệu từ hệ thống và quản lý tài khoản.</p>
         </div>
-        
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add New User
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => usersQuery.refetch()}
+            disabled={usersQuery.isFetching}
+          >
+            <RefreshCw className="w-4 h-4" />
+            Làm mới
+          </Button>
+
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" />
+                Tạo user
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPlus className="w-5 h-5" />
+                  Tạo tài khoản
+                </DialogTitle>
+                <DialogDescription>
+                  Hệ thống sẽ gửi email chứa mật khẩu tạm thời và yêu cầu đổi mật khẩu khi đăng nhập lần đầu.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Email</label>
+                  <Input value={createForm.email} onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))} />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Họ và tên</label>
+                  <Input
+                    value={createForm.fullName}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, fullName: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Vai trò</label>
+                  <Select value={createForm.role} onValueChange={(v) => setCreateForm((p) => ({ ...p, role: v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn vai trò" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roleOptions.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Không tạo được role phụ (StaffPOS/StaffKitchen/...). Manager sẽ gán các role đó sau.
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                  Hủy
+                </Button>
+                <Button onClick={onCreate} disabled={createMutation.isPending} className="gap-2">
+                  <UserRoundCog className="w-4 h-4" />
+                  {createMutation.isPending ? "Đang tạo..." : "Tạo và gửi email"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        {stats.map((stat, i) => (
-          <Card key={i} className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <h3 className="text-3xl font-bold mt-1">{stat.value}</h3>
-              </div>
-              <div className={`w-12 h-12 rounded-full ${stat.iconBg} flex items-center justify-center`}>
-                <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
-              </div>
-            </div>
-          </Card>
-        ))}
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">Tổng user</p>
+          <h3 className="text-3xl font-bold mt-1">{stats.total}</h3>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">Hoạt động</p>
+          <h3 className="text-3xl font-bold mt-1">{stats.active}</h3>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">Bị khóa</p>
+          <h3 className="text-3xl font-bold mt-1">{stats.locked}</h3>
+        </Card>
       </div>
 
-      {/* Search & Filters */}
       <div className="flex items-center gap-4 mb-6">
         <div className="relative flex-1 max-w-lg">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search by Name or User ID..."
+          <Input
+            placeholder="Tìm theo email, họ tên..."
             className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        
+
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-[150px]">
-            <Users className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="All Roles" />
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Tất cả vai trò" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="Student">Student</SelectItem>
-            <SelectItem value="Staff">Staff</SelectItem>
-            <SelectItem value="Manager">Manager</SelectItem>
+            <SelectItem value="all">Tất cả</SelectItem>
+            {roleOptions.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="All Status" />
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Tất cả trạng thái" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Locked">Locked</SelectItem>
+            <SelectItem value="all">Tất cả</SelectItem>
+            <SelectItem value="active">Hoạt động</SelectItem>
+            <SelectItem value="locked">Bị khóa</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Users Table */}
       <Card>
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">User ID</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Full Name</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Role</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Status</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Actions</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Email</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Họ tên</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Role chính</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Trạng thái</th>
+              <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user) => (
-              <tr key={user.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                <td className="px-6 py-4 font-mono text-sm">{user.id}</td>
+            {usersQuery.isLoading && (
+              <tr>
+                <td className="px-6 py-6 text-muted-foreground" colSpan={5}>
+                  Đang tải...
+                </td>
+              </tr>
+            )}
+
+            {usersQuery.isError && (
+              <tr>
+                <td className="px-6 py-6 text-destructive" colSpan={5}>
+                  Không thể tải danh sách user.
+                </td>
+              </tr>
+            )}
+
+            {!usersQuery.isLoading && filteredUsers.length === 0 && (
+              <tr>
+                <td className="px-6 py-6 text-muted-foreground" colSpan={5}>
+                  Không có dữ liệu.
+                </td>
+              </tr>
+            )}
+
+            {filteredUsers.map((u) => (
+              <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                <td className="px-6 py-4 font-mono text-sm">{u.email}</td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                        {getInitials(user.fullName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium">{user.fullName}</span>
+                  <span className="font-medium">{u.fullName ?? "(Chưa có tên)"}</span>
+                </td>
+                <td className="px-6 py-4">{renderRoleBadge(u)}</td>
+                <td className="px-6 py-4">
+                  <Badge className={u.isActive ? "badge-success" : "badge-danger"}>{statusLabel(u.isActive)}</Badge>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleMutation.mutate(u.id)}
+                      disabled={toggleMutation.isPending}
+                    >
+                      {u.isActive ? "Khóa" : "Mở khóa"}
+                    </Button>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <RefreshCw className="w-4 h-4" />
+                          Reset MK
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Reset mật khẩu?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Hệ thống sẽ tạo mật khẩu tạm thời, gửi email cho user và bắt buộc đổi mật khẩu khi đăng nhập.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Hủy</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => resetPwdMutation.mutate(u.id)}>Xác nhận</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="gap-2">
+                          <Trash2 className="w-4 h-4" />
+                          Xóa
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Xóa tài khoản?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Thao tác này sẽ xóa (soft-delete) tài khoản và không thể đăng nhập nữa.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Hủy</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteMutation.mutate(u.id)}>Xóa</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
-                </td>
-                <td className="px-6 py-4 text-muted-foreground">{user.role}</td>
-                <td className="px-6 py-4">
-                  <Badge className={user.status === "Active" ? "badge-success" : "badge-danger"}>
-                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${user.status === "Active" ? "bg-primary" : "bg-destructive"}`} />
-                    {user.status}
-                  </Badge>
-                </td>
-                <td className="px-6 py-4">
-                  {/* Actions placeholder */}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-
-        {/* Pagination */}
-        <div className="p-4 border-t border-border flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing <span className="text-primary font-medium">1</span> to <span className="text-primary font-medium">5</span> of <span className="text-primary font-medium">1,240</span> results
-          </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" disabled>
-              Previous
-            </Button>
-            <Button variant="default" size="sm" className="w-9">1</Button>
-            <Button variant="outline" size="sm" className="w-9">2</Button>
-            <Button variant="outline" size="sm" className="w-9">3</Button>
-            <span className="px-2 text-muted-foreground">...</span>
-            <Button variant="outline" size="sm">Next</Button>
-          </div>
-        </div>
       </Card>
     </div>
   );

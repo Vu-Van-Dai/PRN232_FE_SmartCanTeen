@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Wifi, Clock, AlertTriangle, Play, ChefHat, BarChart3, Info, CheckCheck } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,36 @@ interface Order {
   server?: string;
   timeRemaining: string;
   isOverdue?: boolean;
+  taskStatus?: number | null;
   items: OrderItem[];
+}
+
+function taskStatusLabel(taskStatus?: number | null) {
+  switch (taskStatus) {
+    case 4:
+      return "Completed";
+    case 3:
+      return "Ready";
+    case 2:
+      return "Preparing";
+    case 1:
+    default:
+      return "Pending";
+  }
+}
+
+function taskStatusBadgeClass(taskStatus?: number | null) {
+  switch (taskStatus) {
+    case 4:
+      return "bg-emerald-600 text-white";
+    case 3:
+      return "bg-blue-600 text-white";
+    case 2:
+      return "bg-amber-500 text-white";
+    case 1:
+    default:
+      return "bg-slate-700 text-white";
+  }
 }
 
 function formatDueTimeLocal(iso: string) {
@@ -40,20 +70,20 @@ function minutesUntil(iso: string) {
 function getForecastStyle(mins: number) {
   if (mins <= 15) {
     return {
-      text: "text-amber-400",
-      border: "border-amber-500/30",
-      bg: "bg-amber-500/10",
-      dot: "bg-amber-400",
+      text: "text-red-400",
+      border: "border-red-500/30",
+      bg: "bg-red-500/10",
+      dot: "bg-red-400",
       label: "DUE SOON",
     };
   }
 
   if (mins <= 30) {
     return {
-      text: "text-emerald-400",
-      border: "border-emerald-500/30",
-      bg: "bg-emerald-500/10",
-      dot: "bg-emerald-400",
+      text: "text-amber-400",
+      border: "border-amber-500/30",
+      bg: "bg-amber-500/10",
+      dot: "bg-amber-400",
       label: "NEXT UP",
     };
   }
@@ -69,28 +99,31 @@ function getForecastStyle(mins: number) {
 
 export default function KitchenKDS() {
   const qc = useQueryClient();
-  const { data } = useQuery({
-    queryKey: ["kitchen-orders"],
-    queryFn: kitchenApi.getKitchenOrders,
+  const [searchParams] = useSearchParams();
+  const screenKey = searchParams.get("screenKey") ?? "hot-kitchen";
+  const ordersQueryKey = ["kitchen-orders", screenKey ?? "__all__"] as const;
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ordersQueryKey,
+    queryFn: () => kitchenApi.getKitchenOrders(screenKey),
     refetchInterval: 2_000,
     staleTime: 0,
   });
 
   const startCookingMutation = useMutation({
-    mutationFn: (orderId: string) => kitchenApi.startCooking(orderId),
+    mutationFn: (orderId: string) => kitchenApi.startCooking(orderId, screenKey),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["kitchen-orders"] });
+      await qc.invalidateQueries({ queryKey: ordersQueryKey });
     },
   });
 
   const markReadyMutation = useMutation({
-    mutationFn: (orderId: string) => kitchenApi.markOrderReady(orderId),
+    mutationFn: (orderId: string) => kitchenApi.markOrderReady(orderId, screenKey),
     onMutate: async (orderId: string) => {
-      await qc.cancelQueries({ queryKey: ["kitchen-orders"] });
-      const prev = qc.getQueryData<KitchenOrdersResponse>(["kitchen-orders"]);
+      await qc.cancelQueries({ queryKey: ordersQueryKey });
+      const prev = qc.getQueryData<KitchenOrdersResponse>(ordersQueryKey);
 
       if (prev) {
-        qc.setQueryData<KitchenOrdersResponse>(["kitchen-orders"], {
+        qc.setQueryData<KitchenOrdersResponse>(ordersQueryKey, {
           ...prev,
           preparing: prev.preparing.filter((x) => x.id !== orderId),
         });
@@ -99,10 +132,10 @@ export default function KitchenKDS() {
       return { prev };
     },
     onError: (_err, _orderId, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["kitchen-orders"], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(ordersQueryKey, ctx.prev);
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["kitchen-orders"] });
+      await qc.invalidateQueries({ queryKey: ordersQueryKey });
     },
   });
 
@@ -110,9 +143,33 @@ export default function KitchenKDS() {
     const preparing = data?.preparing ?? [];
     const now = Date.now();
 
+    const getPriority = (x: KitchenOrderDto) => {
+      // 0: overdue scheduled, 1: scheduled due soon (earliest pickup first), 2: immediate/asap (created first)
+      if (x.pickupTime) {
+        const pickupMs = Date.parse(x.pickupTime);
+        if (!Number.isNaN(pickupMs) && pickupMs < now) return 0;
+        return 1;
+      }
+      return 2;
+    };
+
     return preparing
       .slice()
-      .sort((a: KitchenOrderDto, b: KitchenOrderDto) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+      .sort((a: KitchenOrderDto, b: KitchenOrderDto) => {
+        const pa = getPriority(a);
+        const pb = getPriority(b);
+        if (pa !== pb) return pa - pb;
+
+        // Both scheduled: earliest pickup time first
+        if (pa !== 2 && a.pickupTime && b.pickupTime) {
+          const ap = Date.parse(a.pickupTime);
+          const bp = Date.parse(b.pickupTime);
+          if (!Number.isNaN(ap) && !Number.isNaN(bp) && ap !== bp) return ap - bp;
+        }
+
+        // Tie-breaker: created time
+        return Date.parse(a.createdAt) - Date.parse(b.createdAt);
+      })
       .slice(0, 10)
       .map((x: KitchenOrderDto) => {
         if (!x.pickupTime) {
@@ -123,6 +180,7 @@ export default function KitchenKDS() {
             source: "Lấy ngay",
             server: x.orderedBy,
             timeRemaining: "COOKING",
+            taskStatus: x.stationTaskStatus ?? null,
             items: x.items.map((i) => ({ quantity: i.quantity, name: i.name })),
           };
         }
@@ -142,14 +200,24 @@ export default function KitchenKDS() {
           server: x.orderedBy,
           timeRemaining,
           isOverdue: overdue,
+          taskStatus: x.stationTaskStatus ?? null,
           items: x.items.map((i) => ({ quantity: i.quantity, name: i.name })),
         };
       });
   }, [data]);
 
+  const pendingNow = useMemo(() => {
+    const pending = data?.pending ?? [];
+    return pending
+      .filter((x) => !x.pickupTime)
+      .slice()
+      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  }, [data]);
+
   const forecast = useMemo(() => {
-    const upcoming = (data?.upcoming ?? []).filter((x) => !!x.pickupTime);
-    return upcoming
+    // Use pending list for forecast so orders without pickupTime don't disappear.
+    const pending = (data?.pending ?? []).filter((x) => !!x.pickupTime);
+    return pending
       .map((x) => {
         const mins = x.pickupTime ? minutesUntil(x.pickupTime) : null;
         return { x, mins: mins ?? 999 };
@@ -236,6 +304,9 @@ export default function KitchenKDS() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-white">{order.id}</span>
+                      <Badge className={`uppercase text-[10px] px-2 py-0.5 ${taskStatusBadgeClass(order.taskStatus)}`}>
+                        {taskStatusLabel(order.taskStatus)}
+                      </Badge>
                       {getStatusBadge(order.status)}
                       {order.isOverdue && (
                         <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -303,8 +374,52 @@ export default function KitchenKDS() {
           </div>
           <p className="text-slate-500 text-xs mb-5">Prep Forecast (Next 60m)</p>
 
+          {/* Pending now (pickupTime = null) */}
+          {pendingNow.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">PENDING NOW</div>
+                <div className="text-xs text-slate-500">{pendingNow.length}</div>
+              </div>
+
+              <div className="space-y-2">
+                {pendingNow.slice(0, 6).map((x) => (
+                  <div key={x.id} className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-white truncate">#{x.id.slice(0, 6)}</div>
+                        <div className="text-xs text-slate-400 truncate">{x.orderedBy}</div>
+                      </div>
+                      <div className="text-[10px] text-slate-500 whitespace-nowrap">Now</div>
+                    </div>
+
+                    <div className="mt-2 text-xs text-slate-300">
+                      {x.items.slice(0, 2).map((i, idx) => (
+                        <div key={idx} className="truncate">
+                          {i.quantity}x {i.name}
+                        </div>
+                      ))}
+                      {x.items.length > 2 && <div className="text-slate-500">+{x.items.length - 2} more</div>}
+                    </div>
+
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        className="w-full bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
+                        onClick={() => startCookingMutation.mutate(x.id)}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        COOK NOW
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
-            {forecast.length === 0 && (
+            {forecast.length === 0 && pendingNow.length === 0 && (
               <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-slate-400 text-sm">
                 No pickups scheduled in the next 60 minutes.
               </div>
@@ -357,6 +472,40 @@ export default function KitchenKDS() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Completed (small) */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <h3 className="font-semibold text-white text-sm">COMPLETED</h3>
+              </div>
+              <span className="text-xs text-slate-500">{(data?.completed ?? []).length}</span>
+            </div>
+
+            <div className="space-y-2">
+              {(data?.completed ?? []).slice(0, 6).map((x) => (
+                <div
+                  key={x.id}
+                  className="bg-slate-800 rounded-xl p-3 border border-slate-700"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-white truncate">#{x.id.slice(0, 6)}</div>
+                      <div className="text-xs text-slate-400 truncate">{x.orderedBy}</div>
+                    </div>
+                    <div className="text-[10px] text-slate-500 whitespace-nowrap">
+                      {x.stationTaskCompletedAt ? formatDueTimeLocal(x.stationTaskCompletedAt) : "Done"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {!isLoading && !isError && (data?.completed ?? []).length === 0 && (
+                <div className="text-xs text-slate-500">No completed items yet.</div>
+              )}
+            </div>
           </div>
 
           {/* Staff Notice */}

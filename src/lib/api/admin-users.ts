@@ -23,3 +23,15 @@ export function toggleUserActive(id: Guid) {
     method: "POST",
   });
 }
+
+export function resetUserPassword(id: Guid) {
+  return apiRequest<{ message: string }>(`/api/admin/users/${id}/reset-password`, {
+    method: "POST",
+  });
+}
+
+export function deleteUser(id: Guid) {
+  return apiRequest<void>(`/api/admin/users/${id}`, {
+    method: "DELETE",
+  });
+}

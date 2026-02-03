@@ -323,8 +323,8 @@ export default function POSTerminal() {
   };
   
   const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = 0;
-  const total = subtotal;
+  const tax = Math.round(subtotal * 0.08);
+  const total = subtotal + tax;
 
   const paymentStatusQuery = useQuery({
     queryKey: ["pos", "payment-status", pendingOrderId],
@@ -417,7 +417,7 @@ export default function POSTerminal() {
             >
               <div className={cn("aspect-square", "bg-muted")}>
                 <img 
-                  src={item.imageUrl || fallbackImage} 
+                  src={item.imageUrls?.[0] ?? item.imageUrl ?? fallbackImage} 
                   alt={item.name} 
                   className="w-full h-full object-cover"
                 />
@@ -452,7 +452,11 @@ export default function POSTerminal() {
           {orderItems.map((item) => (
             <div key={item.id} className="flex gap-3">
               <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                <img src={item.imageUrl || fallbackImage} alt={item.name} className="w-full h-full object-cover" />
+                <img
+                  src={item.imageUrls?.[0] ?? item.imageUrl ?? fallbackImage}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
               
               <div className="flex-1 min-w-0">

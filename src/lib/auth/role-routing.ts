@@ -13,7 +13,8 @@ export function getPrimaryRole(userRoles: string[]): string {
 }
 
 export function getDefaultPathForRoles(userRoles: string[]): string {
-  if (hasAnyRole(userRoles, ["AdminSystem", "Manager"])) return "/admin";
+  if (hasAnyRole(userRoles, ["AdminSystem"])) return "/admin";
+  if (hasAnyRole(userRoles, ["Manager"])) return "/manager";
   if (hasAnyRole(userRoles, ["StaffKitchen"])) return "/kitchen/kds";
   if (hasAnyRole(userRoles, ["StaffCoordination"])) return "/kitchen/board";
   if (hasAnyRole(userRoles, ["StaffPOS", "Staff"])) return "/pos";
