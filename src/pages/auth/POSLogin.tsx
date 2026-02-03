@@ -44,7 +44,7 @@ export default function POSLogin() {
       const next = await auth.login(email.trim(), password);
       const roles = next.user?.roles ?? [];
 
-      const allowed = hasAnyRole(roles, ["StaffPOS", "Staff", "StaffKitchen", "StaffCoordination"]);
+      const allowed = hasAnyRole(roles, ["StaffPOS", "Staff", "StaffKitchen", "StaffCoordination", "StaffDrink"]);
       if (!allowed) {
         auth.logout();
         toast({
@@ -63,6 +63,7 @@ export default function POSLogin() {
       const isStaffGeneric = hasAnyRole(roles, ["Staff"]);
       const isKitchenStaff = hasAnyRole(roles, ["StaffKitchen"]);
       const isCoordinationStaff = hasAnyRole(roles, ["StaffCoordination"]);
+      const isDrinkStaff = hasAnyRole(roles, ["StaffDrink"]);
 
       if (isPosStaff) {
         try {
@@ -93,6 +94,11 @@ export default function POSLogin() {
 
       if (isCoordinationStaff) {
         navigate("/kitchen/board", { replace: true });
+        return;
+      }
+
+      if (isDrinkStaff) {
+        navigate("/drink/board", { replace: true });
         return;
       }
 

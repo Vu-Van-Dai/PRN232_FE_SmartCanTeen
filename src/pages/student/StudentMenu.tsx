@@ -54,7 +54,7 @@ export default function StudentMenu() {
           name: x.name,
           description: x.categoryName,
           price: Number(x.price),
-          image: x.imageUrl ?? FALLBACK_IMAGE,
+          image: x.imageUrls?.[0] ?? x.imageUrl ?? FALLBACK_IMAGE,
           category: catSlug,
           status: statusFromInventory(x.inventoryQuantity),
         } satisfies MenuItem;

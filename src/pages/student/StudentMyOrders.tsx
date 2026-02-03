@@ -38,6 +38,47 @@ function getStatusLabel(status: number) {
   }
 }
 
+function stationTaskLabel(status: number) {
+  switch (status) {
+    case 4:
+      return "Hoàn tất";
+    case 3:
+      return "Đã xong";
+    case 2:
+      return "Đang làm";
+    case 1:
+    default:
+      return "Chờ";
+  }
+}
+
+function stationTaskColor(status: number) {
+  switch (status) {
+    case 4:
+      return "bg-emerald-100 text-emerald-800";
+    case 3:
+      return "bg-green-100 text-green-800";
+    case 2:
+      return "bg-blue-100 text-blue-800";
+    case 1:
+    default:
+      return "bg-yellow-100 text-yellow-800";
+  }
+}
+
+function getOverallProgressLabel(order: StudentOrderDto) {
+  const tasks = order.stationTasks ?? [];
+  if (tasks.length === 0) return getStatusLabel(order.status);
+
+  const allDone = tasks.every((t) => t.status === 3 || t.status === 4);
+  if (allDone) return "Đã xong";
+
+  const anyPreparing = tasks.some((t) => t.status === 2);
+  if (anyPreparing) return "Đang chuẩn bị";
+
+  return "Chờ chế biến";
+}
+
 function getStatusColor(status: number) {
   switch (status) {
     case 1: // Pending
@@ -75,6 +116,7 @@ export default function StudentMyOrders() {
     queryKey: ["my-orders"],
     queryFn: ordersApi.getMyOrders,
     staleTime: 10_000,
+    refetchInterval: 3_000,
     retry: false,
   });
 
@@ -158,6 +200,8 @@ export default function StudentMyOrders() {
           <div className="grid gap-3">
             {historicalOrders.map((order) => {
               const items = order.items as unknown as OrderItemDisplay[];
+              const stationTasks = order.stationTasks ?? [];
+              const overallLabel = getOverallProgressLabel(order);
               return (
                 <div
                   key={order.id}
@@ -210,6 +254,8 @@ export default function StudentMyOrders() {
           <div className="grid gap-4">
             {activeOrders.map((order) => {
               const items = order.items as unknown as OrderItemDisplay[];
+              const stationTasks = order.stationTasks ?? [];
+              const overallLabel = getOverallProgressLabel(order);
               return (
                 <div
                   key={order.id}
@@ -359,6 +405,8 @@ export default function StudentMyOrders() {
           <div className="grid gap-3">
             {historicalOrders.map((order) => {
               const items = order.items as unknown as OrderItemDisplay[];
+              const stationTasks = order.stationTasks ?? [];
+              const overallLabel = getOverallProgressLabel(order);
               return (
                 <div
                   key={order.id}
@@ -376,12 +424,30 @@ export default function StudentMyOrders() {
                             getStatusColor(order.status)
                           )}
                         >
-                          {getStatusLabel(order.status)}
+                          {overallLabel}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {items.length} món • {formatVND(order.totalPrice)}
                       </p>
+
+                      {stationTasks.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {stationTasks.map((t) => (
+                            <span
+                              key={t.screenKey}
+                              className={cn(
+                                "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+                                stationTaskColor(t.status)
+                              )}
+                            >
+                              <span className="truncate max-w-[140px]">{t.screenName}</span>
+                              <span className="opacity-80">•</span>
+                              <span>{stationTaskLabel(t.status)}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <Button
                       variant="outline"

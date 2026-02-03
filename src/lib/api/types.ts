@@ -54,9 +54,10 @@ export type MenuItemResponse = {
   name: string;
   price: number;
   inventoryQuantity: number;
+  imageUrls?: string[] | null;
   imageUrl?: string | null;
   isActive: boolean;
-  xmin: number;
+  xmin?: number;
 };
 
 export type CreateMenuItemRequest = {
@@ -64,6 +65,7 @@ export type CreateMenuItemRequest = {
   name: string;
   price: number;
   inventoryQuantity: number;
+  imageUrls?: string[] | null;
   imageUrl?: string | null;
   isActive: boolean;
 };
@@ -72,9 +74,10 @@ export type UpdateMenuItemRequest = {
   name: string;
   price: number;
   inventoryQuantity: number;
+  imageUrls?: string[] | null;
   imageUrl?: string | null;
   isActive: boolean;
-  xmin: number;
+  xmin?: number;
 };
 
 export type StaffConfirmRequest = {
@@ -148,6 +151,11 @@ export type KitchenOrderDto = {
   createdAt: string;
   pickupTime: string | null;
   status: string;
+  // Present when calling station screens (screenKey provided)
+  stationTaskStatus?: number | null;
+  stationTaskStartedAt?: string | null;
+  stationTaskReadyAt?: string | null;
+  stationTaskCompletedAt?: string | null;
   isUrgent: boolean;
   totalPrice: number;
   orderedBy: string;
@@ -158,6 +166,7 @@ export type KitchenOrdersResponse = {
   pending: KitchenOrderDto[];
   preparing: KitchenOrderDto[];
   ready: KitchenOrderDto[];
+  completed: KitchenOrderDto[];
   urgent: KitchenOrderDto[];
   upcoming: KitchenOrderDto[];
 };
@@ -167,6 +176,8 @@ export type DailyReportResponse = {
   shifts: Array<{
     id: Guid;
     userId: Guid;
+    status: string;
+    openedByName: string;
     openedAt: string;
     closedAt: string | null;
     systemCashTotal: number;
@@ -181,6 +192,82 @@ export type DailyReportResponse = {
     totalOnline: number;
     totalRevenue: number;
   };
+  stats: {
+    totalOrders: number;
+    totalItemsSold: number;
+  };
+};
+
+export type ShiftOrderItem = {
+  itemId: Guid;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+
+export type DailySalesReportItem = {
+  itemId: Guid;
+  name: string;
+  imageUrl?: string | null;
+  quantity: number;
+  grossAmount: number;
+  discountAmount: number;
+  vatRate: number;
+  vatAmount: number;
+  totalAmount: number;
+};
+
+export type DailySalesReportResponse = {
+  date: string;
+  items: DailySalesReportItem[];
+  totals: {
+    totalItems: number;
+    totalGrossAmount: number;
+    totalDiscountAmount: number;
+    totalVatAmount: number;
+    totalAmount: number;
+  };
+};
+
+export type ShiftOrderListItem = {
+  orderId: Guid;
+  createdAt: string;
+  source: "Cash" | "QR" | "Online" | string;
+  subTotal: number;
+  discountAmount: number;
+  vatRate: number;
+  vatAmount: number;
+  totalPrice: number;
+  status: string;
+  createdBy: {
+    type: "POS" | "User" | string;
+    name: string;
+  };
+  items: ShiftOrderItem[];
+};
+
+export type ShiftReportResponse = {
+  shiftId: Guid;
+  operationalDate: string;
+  openedAt: string;
+  closedAt: string | null;
+  status: string;
+  openedBy: {
+    id: Guid;
+    name: string;
+  };
+  revenue: {
+    cashPos: number;
+    qrPos: number;
+    online: number;
+    total: number;
+  };
+  stats: {
+    totalOrders: number;
+    totalItemsSold: number;
+  };
+  orders: ShiftOrderListItem[];
 };
 
 export type DashboardSnapshotResponse = {
@@ -195,6 +282,21 @@ export type DashboardSnapshotResponse = {
   totalCash: number;
   totalQr: number;
   totalOnline: number;
+};
+
+export type DashboardHourlyResponse = {
+  date: string;
+  points: Array<{
+    hour: string;
+    value: number;
+  }>;
+};
+
+export type DayStatusResponse = {
+  date: string;
+  isClosed: boolean;
+  isLockedNow: boolean;
+  currentOperationalDate: string;
 };
 
 export type ShiftDetailResponse = {
@@ -212,8 +314,18 @@ export type ShiftDetailResponse = {
 export type CreateUserRequest = {
   email: string;
   fullName: string;
-  password: string;
+  password?: string;
   role: string;
+};
+
+export type ForgotPasswordRequest = {
+  email: string;
+};
+
+export type ResetPasswordWithOtpRequest = {
+  email: string;
+  otp: string;
+  newPassword: string;
 };
 
 export type AdminUserListItem = {
@@ -255,6 +367,45 @@ export type ToggleUserResponse = {
   isActive: boolean;
 };
 
+export type PromotionType =
+  | "BuyXGetY"
+  | "CategoryDiscount"
+  | "Bundle"
+  | "Clearance"
+  | "BuyMoreSaveMore";
+
+export type PromotionResponse = {
+  id: Guid;
+  name: string;
+  code: string;
+  type: PromotionType | string;
+  isActive: boolean;
+  startAt: string | null;
+  endAt: string | null;
+  configJson: string;
+  createdAt: string;
+};
+
+export type CreatePromotionRequest = {
+  name: string;
+  code: string;
+  type: PromotionType;
+  isActive: boolean;
+  startAt?: string | null;
+  endAt?: string | null;
+  config: Record<string, unknown>;
+};
+
+export type UpdatePromotionRequest = {
+  name: string;
+  code: string;
+  type: PromotionType;
+  isActive: boolean;
+  startAt?: string | null;
+  endAt?: string | null;
+  config: Record<string, unknown>;
+};
+
 export type StudentOrderItemDto = {
   itemId: Guid;
   name: string;
@@ -269,6 +420,14 @@ export type StudentOrderDto = {
   status: number;
   totalPrice: number;
   items: StudentOrderItemDto[];
+  stationTasks?: Array<{
+    screenKey: string;
+    screenName: string;
+    status: number;
+    startedAt?: string | null;
+    readyAt?: string | null;
+    completedAt?: string | null;
+  }>;
   pickedAtCounter?: string | null;
 };
 

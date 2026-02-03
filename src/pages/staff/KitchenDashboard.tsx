@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, Check, CheckCheck, AlertTriangle, Leaf, MoreHorizontal, Loader2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -155,11 +156,14 @@ function mapOrder(x: KitchenOrderDto, status: OrderStatus): BoardOrder {
 export default function KitchenDashboard() {
   const [activeFilter, setActiveFilter] = useState("All Orders");
   const [completingId, setCompletingId] = useState<Guid | null>(null);
+  const [searchParams] = useSearchParams();
+  const screenKey = searchParams.get("screenKey") ?? "hot-kitchen";
+  const ordersQueryKey = ["kitchen-orders", screenKey ?? "__all__"] as const;
 
   const qc = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["kitchen-orders"],
-    queryFn: kitchenApi.getKitchenOrders,
+    queryKey: ordersQueryKey,
+    queryFn: () => kitchenApi.getKitchenOrders(screenKey),
     refetchInterval: 2_000,
     staleTime: 0,
   });
@@ -168,10 +172,10 @@ export default function KitchenDashboard() {
     mutationFn: (orderId: Guid) => kitchenApi.completeOrder(orderId),
     onMutate: async (orderId: Guid) => {
       setCompletingId(orderId);
-      await qc.cancelQueries({ queryKey: ["kitchen-orders"] });
-      const prev = qc.getQueryData<KitchenOrdersResponse>(["kitchen-orders"]);
+      await qc.cancelQueries({ queryKey: ordersQueryKey });
+      const prev = qc.getQueryData<KitchenOrdersResponse>(ordersQueryKey);
       if (prev) {
-        qc.setQueryData<KitchenOrdersResponse>(["kitchen-orders"], {
+        qc.setQueryData<KitchenOrdersResponse>(ordersQueryKey, {
           ...prev,
           ready: prev.ready.filter((x) => x.id !== orderId),
         });
@@ -179,12 +183,12 @@ export default function KitchenDashboard() {
       return { prev };
     },
     onError: (err, _orderId, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["kitchen-orders"], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(ordersQueryKey, ctx.prev);
       const msg = err instanceof Error ? err.message : "Complete failed";
       toast({ title: "Complete failed", description: msg, variant: "destructive" });
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["kitchen-orders"] });
+      await qc.invalidateQueries({ queryKey: ordersQueryKey });
     },
     onSettled: () => {
       setCompletingId(null);

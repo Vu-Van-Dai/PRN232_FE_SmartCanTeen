@@ -13,11 +13,16 @@ type CloudinarySignatureResponse = {
   signature: string;
 };
 
-export async function uploadImageToCloudinary(file: File): Promise<CloudinaryUploadResult> {
+export async function uploadImageToCloudinary(
+  file: File,
+  options?: { folder?: string }
+): Promise<CloudinaryUploadResult> {
   const sig = await apiRequest<CloudinarySignatureResponse>("/api/uploads/cloudinary-signature", {
     method: "POST",
     body: {
-      folder: (import.meta.env.VITE_CLOUDINARY_FOLDER as string | undefined) ?? undefined,
+      folder:
+        options?.folder ??
+        ((import.meta.env.VITE_CLOUDINARY_FOLDER as string | undefined) ?? undefined),
     },
   });
 

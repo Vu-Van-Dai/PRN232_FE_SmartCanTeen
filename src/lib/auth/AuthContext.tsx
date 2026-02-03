@@ -1,12 +1,21 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { authApi } from "@/lib/api";
-import { decodeJwtPayload, getJwtEmail, getJwtExpiryEpochSeconds, getJwtName, getJwtRoles, getJwtUserId } from "./jwt";
+import {
+  decodeJwtPayload,
+  getJwtEmail,
+  getJwtExpiryEpochSeconds,
+  getJwtMustChangePassword,
+  getJwtName,
+  getJwtRoles,
+  getJwtUserId,
+} from "./jwt";
 
 export type AuthUser = {
   id: string | null;
   email: string | null;
   name: string | null;
   roles: string[];
+  mustChangePassword: boolean;
 };
 
 export type AuthState = {
@@ -70,6 +79,7 @@ function buildUser(token: string | null): AuthUser | null {
     email: getJwtEmail(payload),
     name: getJwtName(payload),
     roles,
+    mustChangePassword: getJwtMustChangePassword(payload),
   };
 }
 
