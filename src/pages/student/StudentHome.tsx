@@ -2,6 +2,11 @@ import { ChevronRight, Star, UtensilsCrossed, Grid3X3, Flame } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
+function formatVND(amount: number) {
+  const rounded = Math.round(Number(amount ?? 0));
+  return new Intl.NumberFormat("vi-VN").format(rounded) + " VND";
+}
+
 const categories = [
   { 
     name: "Breakfast", 
@@ -94,13 +99,13 @@ export default function StudentHome() {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <UtensilsCrossed className="w-4 h-4 text-slate-400" />
-                  <span className="text-xs text-slate-500">Meal of the Day</span>
+                  <span className="text-xs text-slate-500">Món ăn trong ngày</span>
                 </div>
-                <h3 className="font-semibold text-slate-900">Grilled Salmon with Veggies</h3>
-                <p className="text-xl font-bold text-orange-500 mt-1">$7.25</p>
+                <h3 className="font-semibold text-slate-900">Cá hồi nướng với rau củ</h3>
+                <p className="text-xl font-bold text-orange-500 mt-1">{formatVND(7250)}</p>
               </div>
               <Button variant="outline" size="sm" className="text-orange-500 border-orange-500 hover:bg-orange-50 rounded-full">
-                Add to Cart
+                Thêm vào giỏ hàng
               </Button>
             </div>
           </div>
@@ -145,7 +150,7 @@ export default function StudentHome() {
               <h2 className="text-lg font-bold text-slate-900">Top Selling Dishes</h2>
             </div>
             <Link to="/student/menu" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">
-              View All
+              Xem tất cả
             </Link>
           </div>
           
@@ -162,7 +167,7 @@ export default function StudentHome() {
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="font-medium text-slate-900 text-sm truncate">{dish.name}</h3>
-                    <span className="text-orange-500 font-bold">${dish.price.toFixed(2)}</span>
+                    <span className="text-orange-500 font-bold">{formatVND(dish.price)}</span>
                   </div>
                   <div className="flex items-center gap-1 text-sm text-slate-500">
                     <Star className="w-4 h-4 fill-amber-400 text-amber-400" />

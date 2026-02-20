@@ -221,11 +221,11 @@ export default function ShiftManagement() {
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1 gap-2">
                     <Save className="w-4 h-4" />
-                    Save Draft
+                    Lưu nháp
                   </Button>
                   <Button className="flex-1 gap-2">
                     <CheckCircle className="w-4 h-4" />
-                    Finalize Shift
+                    Chốt ca
                   </Button>
                 </div>
               </Card>

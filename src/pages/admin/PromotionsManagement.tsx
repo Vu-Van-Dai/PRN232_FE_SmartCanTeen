@@ -321,7 +321,7 @@ export default function PromotionsManagement() {
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Loại</th>
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Kích hoạt</th>
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Hiệu lực</th>
-              <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Thao tác</th>
+              <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4"></th>
             </tr>
           </thead>
           <tbody>

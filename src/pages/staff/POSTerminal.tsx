@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Minus, Plus, Trash2, CreditCard } from "lucide-react";
+import { Minus, Plus, Trash2, CreditCard, X } from "lucide-react";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +91,21 @@ function formatVND(amount: number) {
   return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
 }
 
+function parseVndInput(raw: string): number {
+  const digitsOnly = raw.replace(/[^0-9]/g, "");
+  if (!digitsOnly) return 0;
+  const n = Number(digitsOnly);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function digitsOnly(raw: string): string {
+  return raw.replace(/[^0-9]/g, "");
+}
+
+function formatVndNumber(amount: number): string {
+  return new Intl.NumberFormat("vi-VN").format(amount);
+}
+
 function getErrorMessage(err: unknown): string {
   if (err && typeof err === "object" && "message" in err) {
     const msg = (err as { message?: unknown }).message;
@@ -104,16 +121,19 @@ export default function POSTerminal() {
   const location = useLocation();
 
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [qrWaitedLong, setQrWaitedLong] = useState(false);
 
+  const [lastCashSummary, setLastCashSummary] = useState<null | { received: number; change: number }>(null);
+
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
   const [infoDialogTitle, setInfoDialogTitle] = useState<string>("");
-  const [infoDialogDescription, setInfoDialogDescription] = useState<string>("");
+  const [infoDialogDescription, setInfoDialogDescription] = useState<ReactNode | null>(null);
 
-  const showInfoDialog = (title: string, description?: string) => {
+  const showInfoDialog = (title: string, description?: ReactNode) => {
     setInfoDialogTitle(title);
-    setInfoDialogDescription(description ?? "");
+    setInfoDialogDescription(description ?? null);
     setInfoDialogOpen(true);
   };
 
@@ -258,12 +278,27 @@ export default function POSTerminal() {
       });
     },
     onSuccess: () => {
-      showInfoDialog("Đã thanh toán tiền mặt", "Đơn đã được ghi nhận và chuyển sang chế biến.");
+      const description =
+        lastCashSummary && lastCashSummary.received > 0 ? (
+          <div className="space-y-0.5">
+            <div className="text-sm text-muted-foreground">
+              Tiền mặt: <span className="font-medium text-foreground">{formatVND(lastCashSummary.received)}</span>
+            </div>
+            <div className="text-sm font-semibold leading-tight text-destructive">
+              Tiền thừa: {formatVND(Math.max(0, lastCashSummary.change))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">Đơn đã được ghi nhận.</div>
+        );
+
+      showInfoDialog("Thanh toán thành công", description);
       setOrderItems([]);
       clearPosDraftOrder();
       setPendingOrderId(null);
       setPendingPayosOrderCode(null);
       setPendingPayosQrCode(null);
+      setLastCashSummary(null);
     },
     onError: (err: unknown) => {
       showInfoDialog("Thanh toán CASH thất bại", getErrorMessage(err));
@@ -325,6 +360,10 @@ export default function POSTerminal() {
   const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = Math.round(subtotal * 0.08);
   const total = subtotal + tax;
+
+  const [cashDigits, setCashDigits] = useState<string>("");
+  const cashReceived = useMemo(() => (cashDigits ? Number(cashDigits) : 0), [cashDigits]);
+  const cashChange = cashReceived - total;
 
   const paymentStatusQuery = useQuery({
     queryKey: ["pos", "payment-status", pendingOrderId],
@@ -531,10 +570,12 @@ export default function POSTerminal() {
     </div>
     
     <AlertDialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
-          <AlertDialogTitle>{infoDialogTitle}</AlertDialogTitle>
-          {infoDialogDescription ? <AlertDialogDescription>{infoDialogDescription}</AlertDialogDescription> : null}
+          <AlertDialogTitle className="text-center">{infoDialogTitle}</AlertDialogTitle>
+          {infoDialogDescription ? (
+            <AlertDialogDescription className="whitespace-pre-line">{infoDialogDescription}</AlertDialogDescription>
+          ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter className="sm:justify-center">
           <AlertDialogAction className="min-w-[160px]" onClick={() => setInfoDialogOpen(false)}>
@@ -588,7 +629,8 @@ export default function POSTerminal() {
           <Button
             onClick={() => {
               setPaymentDialogOpen(false);
-              createCashOrderMutation.mutate();
+              setCashDigits("");
+              setCashDialogOpen(true);
             }}
             disabled={createCashOrderMutation.isPending || (orderItems.length === 0 && !pendingOrderId)}
           >
@@ -631,6 +673,103 @@ export default function POSTerminal() {
             disabled={cancelPendingOrderMutation.isPending || (!pendingOrderId && orderItems.length === 0)}
           >
             Hủy đơn
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={cashDialogOpen} onOpenChange={setCashDialogOpen}>
+      <DialogContent
+        className="max-w-sm [&>button]:hidden flex max-h-[85vh] flex-col"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <DialogHeader className="space-y-1">
+            <DialogTitle>Thanh toán tiền mặt</DialogTitle>
+          </DialogHeader>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="-mt-1"
+            onClick={() => {
+              setCashDialogOpen(false);
+              setPaymentDialogOpen(true);
+            }}
+            aria-label="Đóng"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+          <div>
+            <Input
+              id="cash-received"
+              inputMode="numeric"
+              value={cashDigits}
+              onChange={(e) => setCashDigits(digitsOnly(e.target.value).slice(0, 12))}
+              className="mt-1 h-11 text-base focus-visible:ring-0 focus-visible:ring-offset-0"
+              autoFocus
+            />
+          </div>
+
+          {/* Keypad */}
+          <div className="grid grid-cols-3 gap-2">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+              <Button
+                key={d}
+                type="button"
+                variant="secondary"
+                className="h-12 text-lg font-semibold"
+                onClick={() => setCashDigits((prev) => (prev + d).replace(/^0+/, "").slice(0, 12))}
+              >
+                {d}
+              </Button>
+            ))}
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-12 text-lg font-semibold"
+              onClick={() => setCashDigits((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev))}
+            >
+              ⌫
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-12 text-lg font-semibold"
+              onClick={() => setCashDigits((prev) => (prev + "0").replace(/^0+/, "").slice(0, 12))}
+            >
+              0
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-12 text-lg font-semibold"
+              onClick={() => setCashDigits((prev) => (prev + "00").replace(/^0+/, "").slice(0, 12))}
+            >
+              00
+            </Button>
+          </div>
+        </div>
+
+        <DialogFooter className="sm:justify-center">
+          <Button
+            className="h-12 w-full"
+            onClick={() => {
+              setCashDialogOpen(false);
+              setLastCashSummary({ received: cashReceived, change: cashChange });
+              createCashOrderMutation.mutate();
+            }}
+            disabled={createCashOrderMutation.isPending || cashReceived < total || (orderItems.length === 0 && !pendingOrderId)}
+          >
+            {createCashOrderMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
           </Button>
         </DialogFooter>
       </DialogContent>

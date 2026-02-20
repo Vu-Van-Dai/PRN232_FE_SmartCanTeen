@@ -32,8 +32,8 @@ export default function POSLogin() {
 
     if (!email.trim() || !password) {
       toast({
-        title: "Missing credentials",
-        description: "Please enter your email and password.",
+        title: "Thiếu thông tin đăng nhập",
+        description: "Vui lòng nhập email và mật khẩu.",
         variant: "destructive",
       });
       return;
@@ -48,7 +48,7 @@ export default function POSLogin() {
       if (!allowed) {
         auth.logout();
         toast({
-          title: "Access denied",
+          title: "Từ chối truy cập",
           description: "Tài khoản của bạn không thuộc nhóm nhân viên POS/Bếp. Vui lòng đăng nhập ở trang thường.",
           variant: "destructive",
         });
@@ -110,9 +110,9 @@ export default function POSLogin() {
       // Fallback
       navigate("/pos", { replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Login failed";
+      const msg = err instanceof Error ? err.message : "Đăng nhập thất bại";
       toast({
-        title: "Login failed",
+        title: "Đăng nhập thất bại",
         description: msg,
         variant: "destructive",
       });
@@ -145,21 +145,21 @@ export default function POSLogin() {
       <main className="flex-1 flex items-center justify-center p-12">
         <div className="w-full max-w-md">
           <h1 className="text-3xl font-bold text-white mb-2">
-            Simplified POS Staff Login
+            Đăng nhập nhân viên POS
           </h1>
           <p className="text-slate-400 text-lg mb-10">
-            Enter your email and password to sign in.
+            Nhập email và mật khẩu để đăng nhập.
           </p>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="bg-slate-800/80 rounded-2xl p-6 space-y-6 border border-slate-700/50">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Email Address
+                Email
               </label>
               <Input
                 type="email"
-                placeholder="Email Address"
+                placeholder="Nhập email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-14 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 rounded-xl focus:border-orange-500 focus:ring-orange-500"
@@ -168,11 +168,11 @@ export default function POSLogin() {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Password
+                Mật khẩu
               </label>
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder="Nhập mật khẩu"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-14 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 rounded-xl focus:border-orange-500 focus:ring-orange-500"
@@ -184,7 +184,7 @@ export default function POSLogin() {
               disabled={isSubmitting}
               className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-xl gap-2"
             >
-              {isSubmitting ? "Signing In..." : "Sign In"}
+              {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
               <ArrowRight className="w-5 h-5" />
             </Button>
           </form>

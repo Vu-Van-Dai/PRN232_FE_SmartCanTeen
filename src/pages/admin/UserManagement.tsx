@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw, Search, Shield, Trash2, UserPlus, UserRoundCog } from "lucide-react";
+import * as XLSX from "xlsx";
 import { adminUsersApi } from "@/lib/api";
 import type { AdminUserListItem, CreateUserRequest } from "@/lib/api/types";
 import { useToast } from "@/hooks/use-toast";
@@ -54,17 +55,103 @@ function statusLabel(isActive: boolean) {
   return isActive ? "Hoạt động" : "Bị khóa";
 }
 
+type ImportRole = "Student" | "Parent";
+
+type ImportUserRow = {
+  rowNumber: number;
+  email: string;
+  fullName: string;
+  studentCode?: string;
+};
+
+function downloadExcelTemplate(role: ImportRole) {
+  const wb = XLSX.utils.book_new();
+
+  const headers =
+    role === "Student"
+      ? [["Họ Và Tên", "MSSV", "Email"]]
+      : [["Họ Và Tên", "Email"]];
+
+  const ws = XLSX.utils.aoa_to_sheet(headers);
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+
+  const data = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([data], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const fileName = role === "Student" ? "import-students-template.xlsx" : "import-parents-template.xlsx";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function normalizeHeaderKey(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getRowValue(row: Record<string, unknown>, candidateKeys: string[]) {
+  const keys = Object.keys(row);
+  for (const k of keys) {
+    const nk = normalizeHeaderKey(k);
+    if (candidateKeys.includes(nk)) return row[k];
+  }
+  return undefined;
+}
+
+async function parseUserExcel(file: File): Promise<ImportUserRow[]> {
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: "array" });
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return [];
+
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+
+  const parsed: ImportUserRow[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i] ?? {};
+    const rowNumber = i + 2; // header is row 1 in the template
+
+    const email = String(getRowValue(r, ["email"]) ?? "").trim();
+    const fullName = String(getRowValue(r, ["hovaten", "hoten", "fullname", "name"]) ?? "").trim();
+    const studentCode = String(getRowValue(r, ["mssv", "studentcode", "mahocsinh"]) ?? "").trim();
+
+    const allEmpty = !email && !fullName && !studentCode;
+    if (allEmpty) continue;
+
+    parsed.push({ rowNumber, email, fullName, studentCode: studentCode || undefined });
+  }
+
+  return parsed;
+}
+
 export default function UserManagement() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const importFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importRole, setImportRole] = useState<ImportRole>("Student");
+  const [importFile, setImportFile] = useState<File | null>(null);
   const [createForm, setCreateForm] = useState<CreateUserRequest>({
     email: "",
     fullName: "",
+    studentCode: "",
     role: "Student",
   });
 
@@ -125,7 +212,7 @@ export default function UserManagement() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["adminUsers"] });
       setIsCreateOpen(false);
-      setCreateForm({ email: "", fullName: "", role: "Student" });
+      setCreateForm({ email: "", fullName: "", studentCode: "", role: "Student" });
       toast({
         title: "Tạo tài khoản thành công",
         description: "Hệ thống đã gửi email chứa mật khẩu tạm thời.",
@@ -139,6 +226,98 @@ export default function UserManagement() {
       });
     },
   });
+
+  const importMutation = useMutation({
+    mutationFn: async (payload: { file: File; role: ImportRole }) => {
+      const rows = await parseUserExcel(payload.file);
+      if (rows.length === 0) throw new Error("File không có dữ liệu hợp lệ");
+
+      let success = 0;
+      const failures: Array<{ rowNumber: number; message: string }> = [];
+
+      for (const r of rows) {
+        const email = r.email.trim();
+        const fullName = r.fullName.trim();
+        const studentCode = (r.studentCode ?? "").trim();
+
+        if (!email || !fullName) {
+          failures.push({ rowNumber: r.rowNumber, message: "Thiếu Email/Họ tên" });
+          continue;
+        }
+
+        if (payload.role === "Student" && !studentCode) {
+          failures.push({ rowNumber: r.rowNumber, message: "Thiếu MSSV" });
+          continue;
+        }
+
+        try {
+          await adminUsersApi.createAdminUser({
+            email,
+            fullName,
+            role: payload.role,
+            studentCode: payload.role === "Student" ? studentCode : undefined,
+          });
+          success += 1;
+        } catch (err) {
+          failures.push({
+            rowNumber: r.rowNumber,
+            message: err instanceof Error ? err.message : "Không thể tạo tài khoản",
+          });
+        }
+      }
+
+      return {
+        total: rows.length,
+        success,
+        failures,
+      };
+    },
+    onSuccess: async (result) => {
+      await qc.invalidateQueries({ queryKey: ["adminUsers"] });
+
+      setIsImportOpen(false);
+      setImportFile(null);
+
+      if (result.failures.length === 0) {
+        toast({
+          title: "Import hoàn tất",
+          description: `Đã tạo ${result.success}/${result.total} tài khoản.`,
+        });
+        return;
+      }
+
+      const preview = result.failures
+        .slice(0, 5)
+        .map((f) => `Dòng ${f.rowNumber}: ${f.message}`)
+        .join(" | ");
+
+      toast({
+        title: "Import hoàn tất (có lỗi)",
+        description: `Thành công ${result.success}/${result.total}. Lỗi: ${preview}`,
+        variant: "destructive",
+      });
+    },
+    onError: (err) => {
+      toast({
+        title: "Import thất bại",
+        description: err instanceof Error ? err.message : "Không thể import file",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onImport = async () => {
+    if (!importFile) {
+      toast({
+        title: "Chưa chọn file",
+        description: "Vui lòng chọn file Excel (.xlsx/.xls).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await importMutation.mutateAsync({ file: importFile, role: importRole });
+  };
 
   const filteredUsers = useMemo(() => {
     const users = usersQuery.data ?? [];
@@ -176,6 +355,7 @@ export default function UserManagement() {
   const onCreate = async () => {
     const email = createForm.email.trim();
     const fullName = createForm.fullName.trim();
+    const studentCode = (createForm.studentCode ?? "").trim();
     const role = createForm.role;
 
     if (!email || !fullName || !role) {
@@ -187,7 +367,21 @@ export default function UserManagement() {
       return;
     }
 
-    await createMutation.mutateAsync({ email, fullName, role });
+    if (role === "Student" && !studentCode) {
+      toast({
+        title: "Thiếu MSSV",
+        description: "Vui lòng nhập StudentCode/MSSV cho tài khoản Student.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await createMutation.mutateAsync({
+      email,
+      fullName,
+      role,
+      studentCode: role === "Student" ? studentCode || undefined : undefined,
+    });
   };
 
   const renderRoleBadge = (user: AdminUserListItem) => {
@@ -221,6 +415,87 @@ export default function UserManagement() {
             Làm mới
           </Button>
 
+          <Dialog
+            open={isImportOpen}
+            onOpenChange={(open) => {
+              setIsImportOpen(open);
+              if (!open) setImportFile(null);
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline" disabled={importMutation.isPending}>
+                {importMutation.isPending ? "Đang import..." : "Import Excel"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Import Excel</DialogTitle>
+                <DialogDescription>
+                  Tạo hàng loạt tài khoản và hệ thống sẽ gửi email thông tin đăng nhập cho từng tài khoản.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Vai trò import</label>
+                  <Select value={importRole} onValueChange={(v) => setImportRole(v as ImportRole)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn vai trò" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Student">Student</SelectItem>
+                      <SelectItem value="Parent">Parent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Student yêu cầu có MSSV; Parent không cần MSSV.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => downloadExcelTemplate(importRole)}>
+                    Tải file mẫu
+                  </Button>
+
+                  <input
+                    ref={importFileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      setImportFile(file);
+                    }}
+                  />
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (!importFileInputRef.current) return;
+                      importFileInputRef.current.value = "";
+                      importFileInputRef.current.click();
+                    }}
+                  >
+                    Chọn file
+                  </Button>
+
+                  <div className="text-sm text-muted-foreground truncate flex-1">
+                    {importFile ? importFile.name : "Chưa chọn file"}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsImportOpen(false)}>
+                  Hủy
+                </Button>
+                <Button onClick={onImport} disabled={importMutation.isPending || !importFile}>
+                  {importMutation.isPending ? "Đang import..." : "Import"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -245,6 +520,17 @@ export default function UserManagement() {
                   <Input value={createForm.email} onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))} />
                 </div>
 
+                {createForm.role === "Student" && (
+                  <div>
+                    <label className="text-sm font-medium">MSSV (StudentCode)</label>
+                    <Input
+                      placeholder="Ví dụ: QE180122"
+                      value={createForm.studentCode ?? ""}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, studentCode: e.target.value }))}
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="text-sm font-medium">Họ và tên</label>
                   <Input
@@ -255,7 +541,16 @@ export default function UserManagement() {
 
                 <div>
                   <label className="text-sm font-medium">Vai trò</label>
-                  <Select value={createForm.role} onValueChange={(v) => setCreateForm((p) => ({ ...p, role: v }))}>
+                  <Select
+                    value={createForm.role}
+                    onValueChange={(v) =>
+                      setCreateForm((p) => ({
+                        ...p,
+                        role: v,
+                        studentCode: v === "Student" ? p.studentCode : "",
+                      }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Chọn vai trò" />
                     </SelectTrigger>
@@ -268,7 +563,7 @@ export default function UserManagement() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Không tạo được role phụ (StaffPOS/StaffKitchen/...). Manager sẽ gán các role đó sau.
+                    Chọn vai trò chính cho tài khoản này.
                   </p>
                 </div>
               </div>
@@ -347,7 +642,7 @@ export default function UserManagement() {
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Họ tên</th>
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Role chính</th>
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Trạng thái</th>
-              <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Thao tác</th>
+              <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4"></th>
             </tr>
           </thead>
           <tbody>

@@ -209,7 +209,7 @@ export function StudentHeader({
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80">
             <div className="space-y-2">
-              <p className="text-sm font-semibold">Notifications</p>
+              <p className="text-sm font-semibold">Thông báo</p>
               {notifications.length === 0 ? (
                 <>
                   <p className="text-sm text-muted-foreground">Chưa có thông báo.</p>
@@ -233,7 +233,7 @@ export function StudentHeader({
                   ))}
                   <div className="flex justify-end">
                     <Link to="/student/orders" className="text-xs underline">
-                      Xem My Orders
+                      Xem Đơn của tôi
                     </Link>
                   </div>
                 </div>
@@ -263,25 +263,25 @@ export function StudentHeader({
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Account</DropdownMenuLabel>
+            <DropdownMenuLabel>Tài khoảng</DropdownMenuLabel>
             <DropdownMenuSeparator />
 
             <DropdownMenuItem asChild>
               <Link to="/student/wallet" className="cursor-pointer">
                 <Wallet className="mr-2 h-4 w-4" />
-                My Wallet
+                Ví của tôi
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/student/orders" className="cursor-pointer">
                 <ShoppingBag className="mr-2 h-4 w-4" />
-                My Orders
+                Đơn của tôi
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/student/profile" className="cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
-                Profile
+                Trang cá nhân
               </Link>
             </DropdownMenuItem>
 

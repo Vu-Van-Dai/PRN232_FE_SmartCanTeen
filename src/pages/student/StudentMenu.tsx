@@ -28,9 +28,9 @@ function statusFromInventory(qty: number): MenuItem["status"] {
 
 function getGreeting() {
   const hour = getVnHour() ?? new Date().getHours();
-  if (hour < 12) return { text: "Good Morning", emoji: "☀️" };
-  if (hour < 17) return { text: "Good Afternoon", emoji: "🌤️" };
-  return { text: "Good Evening", emoji: "🌙" };
+  if (hour < 12) return { text: "Chào buổi sáng", emoji: "☀️" };
+  if (hour < 17) return { text: "Chào buổi chiều", emoji: "🌤️" };
+  return { text: "Chào buổi tối", emoji: "🌙" };
 }
 
 export default function StudentMenu() {
@@ -67,7 +67,7 @@ export default function StudentMenu() {
   }, [category, items]);
 
   const greeting = getGreeting();
-  const resolvedName = user?.name ?? user?.email ?? "there";
+  const resolvedName = user?.name ?? user?.email ?? "bạn";
   
   const handleAddToCart = (item: MenuItem) => {
     cart.addItem(
@@ -81,8 +81,8 @@ export default function StudentMenu() {
       1
     );
     toast({
-      title: "Added to cart!",
-      description: `${item.name} has been added to your cart.`,
+      title: "Đã thêm vào giỏ hàng",
+      description: `Đã thêm "${item.name}" vào giỏ hàng.`,
     });
   };
   
@@ -94,16 +94,16 @@ export default function StudentMenu() {
           {greeting.text}, {resolvedName}! {greeting.emoji}
         </h1>
         <p className="text-muted-foreground">
-          Hungry? Check out today's fresh menu.
+          Đói bụng rồi? Xem thực đơn hôm nay nhé.
         </p>
       </div>
 
       {isLoading && (
-        <div className="text-sm text-muted-foreground">Loading menu...</div>
+        <div className="text-sm text-muted-foreground">Đang tải thực đơn...</div>
       )}
 
       {isError && (
-        <div className="text-sm text-destructive">Failed to load menu.</div>
+        <div className="text-sm text-destructive">Không tải được thực đơn.</div>
       )}
       
       {/* Menu Grid */}

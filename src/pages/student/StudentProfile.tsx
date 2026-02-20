@@ -90,7 +90,7 @@ export default function StudentProfile() {
       await patchProfile.mutateAsync({ avatarUrl: uploaded.url });
       toast({ title: "Đã cập nhật avatar" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
+      const msg = err instanceof Error ? err.message : "Tải lên thất bại";
       toast({ title: "Upload thất bại", description: msg, variant: "destructive" });
     } finally {
       setIsUploadingAvatar(false);
@@ -103,7 +103,7 @@ export default function StudentProfile() {
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Profile</h1>
+        <h1 className="text-2xl font-bold">Hồ sơ</h1>
         <Button
           variant="destructive"
           className="gap-2"
@@ -113,7 +113,7 @@ export default function StudentProfile() {
           }}
         >
           <LogOut className="h-4 w-4" />
-          Sign out
+          Đăng xuất
         </Button>
       </div>
 
@@ -128,7 +128,7 @@ export default function StudentProfile() {
       {/* Account Info (read-only) */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Account info</CardTitle>
+          <CardTitle>Thông tin tài khoản</CardTitle>
           <div className="flex items-center gap-3">
             {(profile?.roles ?? user?.roles ?? []).map((r) => (
               <Badge key={r} variant="secondary">
@@ -165,7 +165,7 @@ export default function StudentProfile() {
 
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Họ và tên</p>
                 <p className="mt-1 text-sm font-medium">{profileLoading ? "…" : profile?.fullName ?? user?.name ?? "—"}</p>
               </div>
               <div>
@@ -173,11 +173,11 @@ export default function StudentProfile() {
                 <p className="mt-1 text-sm font-medium">{profileLoading ? "…" : profile?.email ?? user?.email ?? "—"}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Student ID</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Mã sinh viên</p>
                 <p className="mt-1 text-sm font-mono break-all">{profileLoading ? "…" : studentIdText}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Role</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vai trò</p>
                 <p className="mt-1 text-sm font-medium">{profileLoading ? "…" : roleText}</p>
               </div>
             </div>
@@ -188,17 +188,17 @@ export default function StudentProfile() {
       {/* Wallet snapshot */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Wallet snapshot</CardTitle>
+          <CardTitle>Tổng quan ví</CardTitle>
           <Button asChild variant="outline" size="sm" className="gap-2">
             <Link to="/student/wallet">
               <Eye className="h-4 w-4" />
-              View Wallet
+              Xem ví
             </Link>
           </Button>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Current balance</p>
+            <p className="text-sm text-muted-foreground">Số dư hiện tại</p>
             <p className="text-sm font-semibold">{typeof walletMe?.balance === "number" ? formatVND(walletMe.balance) : "—"}</p>
           </div>
         </CardContent>
@@ -207,7 +207,7 @@ export default function StudentProfile() {
       {/* Notifications */}
       <Card>
         <CardHeader>
-          <CardTitle>Notifications</CardTitle>
+          <CardTitle>Thông báo</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-between">
           <div>
@@ -235,12 +235,12 @@ export default function StudentProfile() {
       {/* Security */}
       <Card>
         <CardHeader>
-          <CardTitle>Security</CardTitle>
+          <CardTitle>Bảo mật</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="currentPassword">Current password</Label>
+              <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
               <Input
                 id="currentPassword"
                 type="password"
@@ -250,7 +250,7 @@ export default function StudentProfile() {
               />
             </div>
             <div>
-              <Label htmlFor="newPassword">New password</Label>
+              <Label htmlFor="newPassword">Mật khẩu mới</Label>
               <Input
                 id="newPassword"
                 type="password"
@@ -260,7 +260,7 @@ export default function StudentProfile() {
               />
             </div>
             <div>
-              <Label htmlFor="confirmPassword">Confirm</Label>
+              <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -282,7 +282,7 @@ export default function StudentProfile() {
                   return;
                 }
                 if (newPassword !== confirmPassword) {
-                  toast({ title: "Không khớp", description: "Confirm password không khớp.", variant: "destructive" });
+                  toast({ title: "Không khớp", description: "Mật khẩu xác nhận không khớp.", variant: "destructive" });
                   return;
                 }
 
@@ -293,13 +293,13 @@ export default function StudentProfile() {
                   setConfirmPassword("");
                   toast({ title: "Đổi mật khẩu thành công" });
                 } catch (err) {
-                  const msg = err instanceof Error ? err.message : "Change password failed";
+                  const msg = err instanceof Error ? err.message : "Đổi mật khẩu thất bại";
                   toast({ title: "Đổi mật khẩu thất bại", description: msg, variant: "destructive" });
                 }
               }}
             >
               <Save className="h-4 w-4" />
-              Change password
+              Đổi mật khẩu
             </Button>
           </div>
         </CardContent>

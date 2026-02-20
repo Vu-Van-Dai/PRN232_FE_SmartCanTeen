@@ -52,12 +52,12 @@ export default function CategoryManagement() {
     mutationFn: categoriesApi.createCategory,
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Created", description: "Category created." });
+      toast({ title: "Tạo thành công", description: "Đã tạo danh mục." });
       setEditOpen(false);
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Create failed";
-      toast({ title: "Create failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Tạo thất bại";
+      toast({ title: "Tạo thất bại", description: msg, variant: "destructive" });
     },
   });
 
@@ -66,12 +66,12 @@ export default function CategoryManagement() {
       categoriesApi.updateCategory(p.id, { name: p.name, isActive: p.isActive }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Updated", description: "Category updated." });
+      toast({ title: "Cập nhật thành công", description: "Đã cập nhật danh mục." });
       setEditOpen(false);
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Update failed";
-      toast({ title: "Update failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Cập nhật thất bại";
+      toast({ title: "Cập nhật thất bại", description: msg, variant: "destructive" });
     },
   });
 
@@ -79,11 +79,11 @@ export default function CategoryManagement() {
     mutationFn: (id: string) => categoriesApi.deleteCategory(id),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Deleted", description: "Category deleted." });
+      toast({ title: "Xoá thành công", description: "Đã xoá danh mục." });
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Delete failed";
-      toast({ title: "Delete failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Xoá thất bại";
+      toast({ title: "Xoá thất bại", description: msg, variant: "destructive" });
     },
   });
 
@@ -106,7 +106,7 @@ export default function CategoryManagement() {
   const handleSave = async () => {
     const name = formName.trim();
     if (!name) {
-      toast({ title: "Invalid name", description: "Name is required.", variant: "destructive" });
+      toast({ title: "Tên không hợp lệ", description: "Vui lòng nhập tên.", variant: "destructive" });
       return;
     }
 
@@ -129,7 +129,7 @@ export default function CategoryManagement() {
 
         <Button className="gap-2" onClick={openCreate}>
           <Plus className="w-4 h-4" />
-          Add Category
+          Thêm danh mục
         </Button>
       </div>
 
@@ -180,14 +180,14 @@ export default function CategoryManagement() {
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" className="gap-2" onClick={() => openEdit(cat)}>
                         <Pencil className="h-4 w-4" />
-                        Edit
+                        Sửa
                       </Button>
 
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive" size="sm" className="gap-2">
                             <Trash2 className="h-4 w-4" />
-                            Delete
+                            Xoá
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -198,12 +198,12 @@ export default function CategoryManagement() {
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>Huỷ</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => deleteMutation.mutate(cat.id)}
                               disabled={deleteMutation.isPending}
                             >
-                              Delete
+                              Xoá
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -255,13 +255,13 @@ export default function CategoryManagement() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancel
+              Huỷ
             </Button>
             <Button
               onClick={handleSave}
               disabled={createMutation.isPending || updateMutation.isPending || !formName.trim()}
             >
-              Save
+              Lưu
             </Button>
           </DialogFooter>
         </DialogContent>

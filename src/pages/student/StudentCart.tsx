@@ -93,8 +93,8 @@ export default function StudentCart() {
   const handlePlaceOrder = async () => {
     if (cart.lines.length === 0) {
       toast({
-        title: "Cart is empty",
-        description: "Add some items before placing an order.",
+        title: "Giỏ hàng trống",
+        description: "Vui lòng thêm món vào giỏ trước khi đặt hàng.",
         variant: "destructive",
       });
       return;
@@ -102,8 +102,8 @@ export default function StudentCart() {
 
     if (paymentMethod === "vnpay") {
       toast({
-        title: "VNPay not available",
-        description: "This payment method is not implemented for online orders in BE yet.",
+        title: "VNPay chưa hỗ trợ",
+        description: "Phương thức thanh toán này hiện chưa được BE hỗ trợ cho đơn online.",
         variant: "destructive",
       });
       return;
@@ -174,8 +174,8 @@ export default function StudentCart() {
       setPickupMinute("00");
 
       toast({
-        title: "Order placed",
-        description: "Payment successful.",
+        title: "Đặt hàng thành công",
+        description: "Thanh toán thành công.",
       });
 
       navigate("/student/orders", { replace: true });
@@ -184,7 +184,7 @@ export default function StudentCart() {
       if (err instanceof ApiError) {
         console.error("Checkout API error", { status: err.status, body: err.body });
 
-        const rawMessage = err.message || "Checkout failed";
+        const rawMessage = err.message || "Thanh toán thất bại";
         const missingMatch = /item\s+([0-9a-fA-F-]{36})\s+not\s+found/i.exec(rawMessage);
         const missingId = missingMatch?.[1]?.toLowerCase();
         const missingLine = missingId
@@ -196,7 +196,7 @@ export default function StudentCart() {
           cart.removeItem(missingId);
 
           toast({
-            title: `Checkout failed (HTTP ${err.status})`,
+            title: `Thanh toán thất bại (HTTP ${err.status})`,
             description: missingLine
               ? `Món "${missingLine.name}" không còn tồn tại trong menu. Đã tự động xoá khỏi giỏ hàng.`
               : `Item ${missingId} không còn tồn tại trong menu. Đã tự động xoá khỏi giỏ hàng.`,
@@ -206,16 +206,16 @@ export default function StudentCart() {
         }
 
         toast({
-          title: `Checkout failed (HTTP ${err.status})`,
+          title: `Thanh toán thất bại (HTTP ${err.status})`,
           description: rawMessage,
           variant: "destructive",
         });
         return;
       }
 
-      const msg = err instanceof Error ? err.message : "Checkout failed";
+      const msg = err instanceof Error ? err.message : "Thanh toán thất bại";
       console.error("Checkout error", err);
-      toast({ title: "Checkout failed", description: msg, variant: "destructive" });
+      toast({ title: "Thanh toán thất bại", description: msg, variant: "destructive" });
     }
   };
 
@@ -223,18 +223,18 @@ export default function StudentCart() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
         <Link to="/student/home" className="hover:text-foreground">
-          Home
+          Trang Chủ
         </Link>
         <span>/</span>
         <Link to="/student/menu" className="hover:text-foreground">
           Menu
         </Link>
         <span>/</span>
-        <span className="text-foreground">Cart</span>
+        <span className="text-foreground">Giỏ Hàng</span>
       </div>
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Shopping Cart</h1>
+        <h1 className="text-3xl font-bold">Giỏ Hàng</h1>
         <span className="text-primary font-medium">{itemLabel}</span>
       </div>
 
@@ -305,15 +305,15 @@ export default function StudentCart() {
 
         <div className="space-y-4">
           <div className="bg-card rounded-xl border border-border p-6">
-            <h3 className="font-semibold text-lg mb-4">Order Summary</h3>
+            <h3 className="font-semibold text-lg mb-4">Tóm Tắt Đơn Hàng</h3>
 
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-muted-foreground">Tạm Tính</span>
                 <span>{formatVND(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">VAT (8%)</span>
+                <span className="text-muted-foreground">Thuế VAT (8%)</span>
                 <span>{formatVND(vat)}</span>
               </div>
               <div className="border-t border-border pt-3 flex justify-between">
@@ -399,7 +399,7 @@ export default function StudentCart() {
                     </div>
 
                     <p className="text-xs text-muted-foreground mt-2">
-                      Giờ mở cửa từ 06:00–22:00 hàng ngày (giờ Việt Nam).
+                      Giờ mở cửa từ 06:00–22:00 hàng ngày.
                     </p>
                   </div>
                 )}
@@ -420,9 +420,9 @@ export default function StudentCart() {
                     <Wallet className="w-4 h-4 text-primary" />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-medium">Internal Wallet</p>
+                    <p className="text-sm font-medium">Ví Nội Bộ</p>
                     <p className="text-xs text-primary">
-                      Balance: {typeof walletMe?.balance === "number" ? formatVND(Number(walletMe.balance)) : "—"}
+                      Số dư: {typeof walletMe?.balance === "number" ? formatVND(Number(walletMe.balance)) : "—"}
                     </p>
                   </div>
                 </div>
@@ -442,7 +442,7 @@ export default function StudentCart() {
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-medium">VNPay QR</p>
-                    <p className="text-xs text-muted-foreground">Scan to pay</p>
+                    <p className="text-xs text-muted-foreground">Quét mã để thanh toán</p>
                   </div>
                 </div>
                 {paymentMethod === "vnpay" && <CheckCircle className="w-5 h-5 text-primary" />}
@@ -450,18 +450,10 @@ export default function StudentCart() {
             </div>
 
             <Button className="w-full gap-2" size="lg" onClick={handlePlaceOrder} disabled={cart.lines.length === 0}>
-              Place Order
+              Đặt Hàng
               <span className="ml-2 px-2 py-0.5 bg-primary-foreground/20 rounded text-xs">{formatVND(total)}</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
-
-            <p className="text-xs text-center text-muted-foreground mt-3">
-              By placing an order, you agree to our{" "}
-              <a href="#" className="text-primary underline">
-                Terms of Service
-              </a>
-              .
-            </p>
           </div>
         </div>
       </div>

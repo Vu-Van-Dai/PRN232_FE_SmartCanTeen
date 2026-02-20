@@ -32,9 +32,9 @@ type BoardOrder = {
 };
 
 const filters = [
-  { label: "All Orders", icon: null },
-  { label: "Vegetarian", icon: Leaf },
-  { label: "Allergy Alert", icon: AlertTriangle, variant: "destructive" as const },
+  { label: "Tất cả đơn", icon: null },
+  { label: "Món chay", icon: Leaf },
+  { label: "Cảnh báo dị ứng", icon: AlertTriangle, variant: "destructive" as const },
 ];
 
 function OrderCard({
@@ -60,16 +60,16 @@ function OrderCard({
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">#{order.displayId}</span>
             {order.tags?.includes("new") && (
-              <Badge className="bg-info/10 text-info text-[10px] px-1.5 py-0">NEW</Badge>
+              <Badge className="bg-info/10 text-info text-[10px] px-1.5 py-0">MỚI</Badge>
             )}
             {order.tags?.includes("veg") && (
               <Badge className="bg-primary/10 text-primary text-[10px] px-1.5 py-0 gap-1">
-                <Leaf className="w-2.5 h-2.5" /> VEG
+                <Leaf className="w-2.5 h-2.5" /> CHAY
               </Badge>
             )}
             {order.tags?.includes("allergy") && (
               <Badge className="bg-destructive/10 text-destructive text-[10px] px-1.5 py-0 gap-1">
-                <AlertTriangle className="w-2.5 h-2.5" /> ALLERGY
+                <AlertTriangle className="w-2.5 h-2.5" /> DỊ ỨNG
               </Badge>
             )}
           </div>
@@ -110,7 +110,7 @@ function OrderCard({
             onClick={() => onAction(order.id, "ready")}
             disabled={!!isCompleting}
           >
-            {isCompleting ? "Completing..." : "Complete"}
+            {isCompleting ? "Đang hoàn tất..." : "Hoàn tất"}
             <CheckCheck className="w-3 h-3" />
           </Button>
         )}
@@ -137,7 +137,7 @@ function minutesAgo(iso: string) {
   const ms = Date.now() - Date.parse(iso);
   if (Number.isNaN(ms)) return "";
   const m = Math.max(0, Math.floor(ms / 60000));
-  return `${m}m`;
+  return `${m} phút`;
 }
 
 function mapOrder(x: KitchenOrderDto, status: OrderStatus): BoardOrder {
@@ -147,14 +147,14 @@ function mapOrder(x: KitchenOrderDto, status: OrderStatus): BoardOrder {
     displayId: shortId(x.id),
     customerName: x.orderedBy,
     items: x.items.map((i) => `${i.quantity}x ${i.name}`),
-    time: status === "ready" ? "Ready" : created || "Now",
+    time: status === "ready" ? "Đã xong" : created || "Vừa tạo",
     status,
     tags: undefined,
   };
 }
 
 export default function KitchenDashboard() {
-  const [activeFilter, setActiveFilter] = useState("All Orders");
+  const [activeFilter, setActiveFilter] = useState("Tất cả đơn");
   const [completingId, setCompletingId] = useState<Guid | null>(null);
   const [searchParams] = useSearchParams();
   const screenKey = searchParams.get("screenKey") ?? "hot-kitchen";
@@ -169,7 +169,7 @@ export default function KitchenDashboard() {
   });
 
   const completeMutation = useMutation({
-    mutationFn: (orderId: Guid) => kitchenApi.completeOrder(orderId),
+    mutationFn: (orderId: Guid) => kitchenApi.completeOrder(orderId, screenKey),
     onMutate: async (orderId: Guid) => {
       setCompletingId(orderId);
       await qc.cancelQueries({ queryKey: ordersQueryKey });
@@ -184,8 +184,8 @@ export default function KitchenDashboard() {
     },
     onError: (err, _orderId, ctx) => {
       if (ctx?.prev) qc.setQueryData(ordersQueryKey, ctx.prev);
-      const msg = err instanceof Error ? err.message : "Complete failed";
-      toast({ title: "Complete failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Hoàn tất thất bại";
+      toast({ title: "Hoàn tất thất bại", description: msg, variant: "destructive" });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ordersQueryKey });
@@ -207,10 +207,10 @@ export default function KitchenDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Live Order Status</h1>
+          <h1 className="text-3xl font-bold">Trạng thái đơn hàng</h1>
           <div className="flex items-center gap-2 text-muted-foreground mt-1">
             <Clock className="w-4 h-4 text-primary" />
-            <span className="text-sm">12:45 PM - Lunch Service</span>
+            <span className="text-sm">12:45 - Ca trưa</span>
           </div>
         </div>
         
@@ -239,7 +239,7 @@ export default function KitchenDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-warning rounded-full" />
-              <h2 className="font-semibold">Preparing</h2>
+              <h2 className="font-semibold">Đang chuẩn bị</h2>
               <Badge variant="secondary" className="rounded-full">{preparingOrders.length}</Badge>
             </div>
             <button className="p-1 hover:bg-muted rounded">
@@ -249,16 +249,16 @@ export default function KitchenDashboard() {
           <div className="space-y-3">
             {isLoading && (
               <div className="text-sm text-muted-foreground flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading orders...
+                <Loader2 className="w-4 h-4 animate-spin" /> Đang tải đơn...
               </div>
             )}
             {isError && (
               <div className="text-sm text-destructive">
-                Failed to load orders: {error instanceof Error ? error.message : "Unknown error"}
+                Không tải được đơn: {error instanceof Error ? error.message : "Lỗi không xác định"}
               </div>
             )}
             {!isLoading && !isError && preparingOrders.length === 0 && (
-              <div className="text-sm text-muted-foreground">No orders in progress.</div>
+              <div className="text-sm text-muted-foreground">Không có đơn đang chuẩn bị.</div>
             )}
             {preparingOrders.map((order) => (
               <OrderCard
@@ -283,7 +283,7 @@ export default function KitchenDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-primary rounded-full" />
-              <h2 className="font-semibold">Ready for Pickup</h2>
+              <h2 className="font-semibold">Sẵn sàng nhận</h2>
               <Badge variant="secondary" className="rounded-full">{readyOrders.length}</Badge>
             </div>
             <button className="p-1 hover:bg-muted rounded">
@@ -292,7 +292,7 @@ export default function KitchenDashboard() {
           </div>
           <div className="space-y-3">
             {!isLoading && !isError && readyOrders.length === 0 && (
-              <div className="text-sm text-muted-foreground">No ready orders.</div>
+              <div className="text-sm text-muted-foreground">Chưa có đơn sẵn sàng.</div>
             )}
             {readyOrders.map((order) => (
               <OrderCard

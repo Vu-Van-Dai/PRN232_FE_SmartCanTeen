@@ -1,7 +1,15 @@
-import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Download, CreditCard, QrCode } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, CreditCard, QrCode as QrCodeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { walletApi } from "@/lib/api";
@@ -9,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { formatVnDateTime } from "@/lib/datetime";
+import QRCode from "react-qr-code";
 
 const topUpAmounts = [20000, 50000, 100000];
 
@@ -30,9 +39,9 @@ function shortId(id: string) {
 
 function statusLabel(status: number) {
   // BE: Pending=0, Success=1, Failed=2
-  if (status === 1) return { text: "Success", className: "bg-primary/10 text-primary" };
-  if (status === 2) return { text: "Failed", className: "bg-destructive/10 text-destructive" };
-  return { text: "Pending", className: "bg-warning/10 text-warning" };
+  if (status === 1) return { text: "Thành công", className: "bg-primary/10 text-primary" };
+  if (status === 2) return { text: "Thất bại", className: "bg-destructive/10 text-destructive" };
+  return { text: "Đang xử lý", className: "bg-warning/10 text-warning" };
 }
 
 function typeSignedAmount(type: number, amount: number) {
@@ -42,32 +51,64 @@ function typeSignedAmount(type: number, amount: number) {
 }
 
 export default function StudentWallet() {
+  const queryClient = useQueryClient();
+
+  const [selectedAmount, setSelectedAmount] = useState(topUpAmounts[1]);
+  const [customAmount, setCustomAmount] = useState(String(topUpAmounts[1]));
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [pendingTopup, setPendingTopup] = useState<{ baseBalance: number; amount: number } | null>(null);
+
   const { data: walletMe, isLoading, isError } = useQuery({
     queryKey: ["wallet", "me"],
     queryFn: walletApi.getMyWallet,
     staleTime: 15_000,
+    refetchInterval: paymentUrl ? 2_500 : false,
     retry: false,
   });
 
   const balance = walletMe?.balance ?? 0;
-
-  const [selectedAmount, setSelectedAmount] = useState(topUpAmounts[1]);
-  const [customAmount, setCustomAmount] = useState(String(topUpAmounts[1]));
 
   const parsedAmount = useMemo(() => {
     const n = Number(String(customAmount).replace(/,/g, "").trim());
     return Number.isFinite(n) ? n : NaN;
   }, [customAmount]);
 
+  useEffect(() => {
+    if (!paymentUrl) return;
+    if (!pendingTopup) return;
+    if (isLoading) return;
+
+    const target = pendingTopup.baseBalance + pendingTopup.amount;
+    if (Number(balance) >= target) {
+      setPaymentUrl(null);
+      setPendingTopup(null);
+      toast({ title: "Nạp tiền thành công", description: "Số dư đã được cập nhật." });
+      queryClient.invalidateQueries({ queryKey: ["wallet", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet", "transactions"] });
+    }
+  }, [balance, isLoading, paymentUrl, pendingTopup, queryClient]);
+
   const topupMutation = useMutation({
     mutationFn: (amount: number) => walletApi.topupMyWallet(amount),
     onSuccess: (res) => {
-      if (res?.paymentUrl) window.open(res.paymentUrl, "_blank", "noopener,noreferrer");
-      toast({ title: "Top-up created", description: "Opened payment page in a new tab." });
+      const url = res?.paymentUrl;
+      if (!url) {
+        toast({
+          title: "Tạo yêu cầu nạp tiền thất bại",
+          description: "Thiếu đường dẫn thanh toán từ hệ thống.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setPendingTopup({ baseBalance: Number(balance ?? 0), amount: Number(parsedAmount) });
+      setPaymentUrl(url);
+      toast({ title: "Tạo yêu cầu nạp tiền", description: "Vui lòng quét QR để thanh toán." });
+      queryClient.invalidateQueries({ queryKey: ["wallet", "transactions"] });
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Top-up failed";
-      toast({ title: "Top-up failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Nạp tiền thất bại";
+      toast({ title: "Nạp tiền thất bại", description: msg, variant: "destructive" });
     },
   });
 
@@ -75,6 +116,7 @@ export default function StudentWallet() {
     queryKey: ["wallet", "transactions"],
     queryFn: () => walletApi.getMyWalletTransactions({ skip: 0, take: 20 }),
     staleTime: 10_000,
+    refetchInterval: paymentUrl ? 2_500 : false,
     retry: false,
   });
   
@@ -83,24 +125,20 @@ export default function StudentWallet() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
         <Link to="/student/home" className="text-primary hover:underline">
-          Home
+          Trang chủ
         </Link>
         <span>›</span>
-        <span>My Wallet</span>
+        <span>Ví của tôi</span>
       </div>
       
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold mb-1">My Wallet</h1>
+          <h1 className="text-3xl font-bold mb-1">Ví của tôi</h1>
           <p className="text-muted-foreground">
-            Manage your funds, top up instantly, and track your daily spending.
+            Quản lý tài khoản, nạp tiền tức thì và theo dõi chi tiêu hàng ngày của bạn.
           </p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Download Statement
-        </Button>
       </div>
       
       {/* Wallet Card & Top Up Section */}
@@ -117,7 +155,7 @@ export default function StudentWallet() {
           </h2>
           <div className="flex items-center gap-2 mb-8">
             <span className="w-2 h-2 bg-primary rounded-full" />
-            <span className="text-primary text-sm font-medium">ACTIVE STATUS</span>
+            <span className="text-primary text-sm font-medium">TRẠNG THÁI HOẠT ĐỘNG</span>
           </div>
           
           <div className="flex justify-between mt-auto">
@@ -136,11 +174,11 @@ export default function StudentWallet() {
         <div className="bg-card rounded-xl border border-border p-6">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="w-5 h-5 text-primary" />
-            <h3 className="font-semibold text-lg">Top Up Balance</h3>
+            <h3 className="font-semibold text-lg">Nạp tiền vào tài khoản</h3>
           </div>
           
           <p className="text-sm text-muted-foreground mb-4">
-            Enter amount to generate a payment QR code.
+            Nhập số tiền để tạo mã QR thanh toán.
           </p>
           
           <div className="flex gap-2 mb-4">
@@ -178,36 +216,74 @@ export default function StudentWallet() {
               disabled={!Number.isFinite(parsedAmount) || parsedAmount <= 0 || topupMutation.isPending}
               onClick={() => {
                 if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-                  toast({ title: "Invalid amount", description: "Please enter a valid amount.", variant: "destructive" });
+                  toast({ title: "Số tiền không hợp lệ", description: "Vui lòng nhập số tiền hợp lệ.", variant: "destructive" });
                   return;
                 }
                 topupMutation.mutate(parsedAmount);
               }}
             >
-              Generate QR Code
-              <QrCode className="w-4 h-4" />
+              Tạo mã QR thanh toán
+              <QrCodeIcon className="w-4 h-4" />
             </Button>
             
             <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
               <div className="text-center text-xs text-muted-foreground">
-                <QrCode className="w-8 h-8 mx-auto mb-1 opacity-30" />
+                <QrCodeIcon className="w-8 h-8 mx-auto mb-1 opacity-30" />
                 <p>QR Code</p>
               </div>
             </div>
           </div>
           
           <p className="text-xs text-muted-foreground text-center mt-3">
-            Scan with banking app • Redirects to VNPay
+            Quét bằng ứng dụng ngân hàng • Thanh toán qua VNPay
           </p>
         </div>
       </div>
 
+      <Dialog
+        open={!!paymentUrl}
+        onOpenChange={(open) => {
+          if (open) return;
+          setPaymentUrl(null);
+          setPendingTopup(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Quét QR để nạp tiền</DialogTitle>
+            <DialogDescription>
+              Số tiền: <span className="font-medium">{Number.isFinite(parsedAmount) ? formatVND(parsedAmount) : "—"}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-center">
+            <div className="rounded-lg border bg-white p-4">
+              {paymentUrl ? <QRCode value={paymentUrl} size={220} /> : <div>Không có QR</div>}
+            </div>
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground">Đang chờ thanh toán…</div>
+
+          <DialogFooter className="sm:justify-center">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPaymentUrl(null);
+                setPendingTopup(null);
+              }}
+            >
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="bg-card rounded-xl border border-border p-6">
-        <h3 className="font-semibold text-lg mb-1">Recent Transactions</h3>
+        <h3 className="font-semibold text-lg mb-1">Các giao dịch gần đây</h3>
         {txLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">Đang tải…</p>
         ) : !txRes?.items?.length ? (
-          <p className="text-sm text-muted-foreground">No transactions yet.</p>
+          <p className="text-sm text-muted-foreground">Chưa có giao dịch nào.</p>
         ) : (
           <div className="space-y-3 mt-4">
             {txRes.items.map((tx) => {
@@ -215,7 +291,7 @@ export default function StudentWallet() {
               const meta = statusLabel(tx.status);
               const isDebit = signed < 0;
 
-              const desc = tx.orderId ? "Order payment" : tx.type === 0 ? "Wallet top-up" : "Wallet transaction";
+              const desc = tx.orderId ? "Thanh toán đơn hàng" : tx.type === 0 ? "Nạp ví" : "Giao dịch ví";
               const ref = tx.orderId ? `#ORD-${shortId(tx.orderId)}` : `#TX-${shortId(tx.id)}`;
 
               return (
