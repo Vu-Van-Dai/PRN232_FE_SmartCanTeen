@@ -19,17 +19,30 @@ interface MenuItemCardProps {
   onAddToCart: (item: MenuItem) => void;
 }
 
+function formatVND(amount: number) {
+  const rounded = Math.round(Number(amount ?? 0));
+  return new Intl.NumberFormat("vi-VN").format(rounded) + " VND";
+}
+
 export function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   
   const getStatusBadge = () => {
     switch (item.status) {
       case "in_stock":
-        return <Badge className="badge-success gap-1"><span className="w-1.5 h-1.5 bg-primary rounded-full" /> In Stock</Badge>;
+        return (
+          <Badge className="badge-success gap-1">
+            <span className="w-1.5 h-1.5 bg-primary rounded-full" /> Còn hàng
+          </Badge>
+        );
       case "low_stock":
-        return <Badge className="badge-warning gap-1"><AlertTriangle className="w-3 h-3" /> Low Stock</Badge>;
+        return (
+          <Badge className="badge-warning gap-1">
+            <AlertTriangle className="w-3 h-3" /> Sắp hết
+          </Badge>
+        );
       case "sold_out":
-        return <Badge className="badge-danger">SOLD OUT</Badge>;
+        return <Badge className="badge-danger">Hết hàng</Badge>;
     }
   };
   
@@ -59,7 +72,7 @@ export function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
         {item.status === "sold_out" && (
           <div className="absolute inset-0 bg-foreground/50 flex items-center justify-center">
             <span className="text-lg font-bold text-background px-4 py-2 bg-foreground/80 rounded-lg">
-              SOLD OUT
+              Hết hàng
             </span>
           </div>
         )}
@@ -70,7 +83,7 @@ export function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-semibold text-base leading-tight">{item.name}</h3>
           <span className="text-sm font-bold border border-border rounded-lg px-2 py-1">
-            ${item.price.toFixed(2)}
+            {formatVND(item.price)}
           </span>
         </div>
         
@@ -86,7 +99,7 @@ export function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
           size="sm"
         >
           <ShoppingCart className="w-4 h-4" />
-          {item.status === "sold_out" ? "Out of Stock" : "Add to Cart"}
+          {item.status === "sold_out" ? "Hết hàng" : "Thêm vào giỏ"}
         </Button>
       </div>
     </div>

@@ -230,7 +230,7 @@ export default function DrinkBoard() {
       await qc.cancelQueries({ queryKey: ["kitchen-orders", screenKey] });
     },
     onError: (err) => {
-      toast({ title: "Start preparing thất bại", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" });
+      toast({ title: "Bắt đầu chuẩn bị thất bại", description: err instanceof Error ? err.message : "Lỗi không xác định", variant: "destructive" });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["kitchen-orders", screenKey] });
@@ -254,7 +254,7 @@ export default function DrinkBoard() {
     },
     onError: (err, _orderId, ctx) => {
       if (ctx?.prev) qc.setQueryData(["kitchen-orders", screenKey], ctx.prev);
-      toast({ title: "Mark ready thất bại", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" });
+      toast({ title: "Chuyển sang sẵn sàng thất bại", description: err instanceof Error ? err.message : "Lỗi không xác định", variant: "destructive" });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["kitchen-orders", screenKey] });
@@ -278,7 +278,7 @@ export default function DrinkBoard() {
     },
     onError: (err, _orderId, ctx) => {
       if (ctx?.prev) qc.setQueryData(["kitchen-orders", screenKey], ctx.prev);
-      toast({ title: "Complete thất bại", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" });
+      toast({ title: "Hoàn tất thất bại", description: err instanceof Error ? err.message : "Lỗi không xác định", variant: "destructive" });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["kitchen-orders", screenKey] });
@@ -314,7 +314,7 @@ export default function DrinkBoard() {
 
       {isError && (
         <Card className="p-4 mb-6 border-destructive">
-          <p className="text-destructive text-sm">Failed to load orders: {error instanceof Error ? error.message : "Unknown error"}</p>
+          <p className="text-destructive text-sm">Không tải được đơn: {error instanceof Error ? error.message : "Lỗi không xác định"}</p>
         </Card>
       )}
 
@@ -323,7 +323,7 @@ export default function DrinkBoard() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-warning rounded-full" />
-              <h2 className="font-semibold">Preparing</h2>
+              <h2 className="font-semibold">Đang chuẩn bị</h2>
               <Badge variant="secondary" className="rounded-full">{preparingOrders.length}</Badge>
             </div>
             <button className="p-1 hover:bg-muted rounded">
@@ -334,11 +334,11 @@ export default function DrinkBoard() {
           <div className="space-y-3">
             {isLoading && (
               <div className="text-sm text-muted-foreground flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading orders...
+                <Loader2 className="w-4 h-4 animate-spin" /> Đang tải đơn...
               </div>
             )}
             {!isLoading && !isError && preparingOrders.length === 0 && (
-              <div className="text-sm text-muted-foreground">No orders in progress.</div>
+              <div className="text-sm text-muted-foreground">Không có đơn đang chuẩn bị.</div>
             )}
 
             {preparingOrders.map((order) => (
@@ -358,7 +358,7 @@ export default function DrinkBoard() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-primary rounded-full" />
-              <h2 className="font-semibold">Ready</h2>
+              <h2 className="font-semibold">Sẵn sàng</h2>
               <Badge variant="secondary" className="rounded-full">{readyOrders.length}</Badge>
             </div>
             <button className="p-1 hover:bg-muted rounded">
@@ -368,7 +368,7 @@ export default function DrinkBoard() {
 
           <div className="space-y-3">
             {!isLoading && !isError && readyOrders.length === 0 && (
-              <div className="text-sm text-muted-foreground">No ready orders.</div>
+              <div className="text-sm text-muted-foreground">Chưa có đơn sẵn sàng.</div>
             )}
 
             {readyOrders.map((order) => (
@@ -388,7 +388,7 @@ export default function DrinkBoard() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-slate-400 rounded-full" />
-              <h2 className="font-semibold">Upcoming</h2>
+              <h2 className="font-semibold">Sắp tới</h2>
               <Badge variant="secondary" className="rounded-full">{forecast.length}</Badge>
             </div>
             <button className="p-1 hover:bg-muted rounded" aria-label="Upcoming options">
@@ -398,7 +398,7 @@ export default function DrinkBoard() {
 
           <div className="space-y-3">
             {!isLoading && !isError && forecast.length === 0 && (
-              <div className="text-sm text-muted-foreground">No pickups scheduled in the next 60 minutes.</div>
+              <div className="text-sm text-muted-foreground">Không có lịch nhận trong 60 phút tới.</div>
             )}
 
             {forecast.map(({ x, mins }) => {
@@ -421,8 +421,8 @@ export default function DrinkBoard() {
                     </div>
 
                     <div className="text-right">
-                      <div className={cn("text-sm font-mono font-semibold", style.text)}>in {mins}m</div>
-                      <div className="text-[10px] text-muted-foreground">due {dueAt}</div>
+                      <div className={cn("text-sm font-mono font-semibold", style.text)}>còn {mins}p</div>
+                      <div className="text-[10px] text-muted-foreground">dự kiến {dueAt}</div>
                     </div>
                   </div>
 
@@ -432,7 +432,7 @@ export default function DrinkBoard() {
                         {i.quantity}x {i.name}
                       </div>
                     ))}
-                    {x.items.length > 3 && <div className="opacity-70">+{x.items.length - 3} more</div>}
+                    {x.items.length > 3 && <div className="opacity-70">+{x.items.length - 3} món nữa</div>}
                   </div>
 
                   <div className="mt-3">
@@ -443,7 +443,7 @@ export default function DrinkBoard() {
                       onClick={() => startPreparingMutation.mutate(x.id)}
                       disabled={isStarting}
                     >
-                      {isStarting ? "Đang bắt đầu..." : "Start Preparing"}
+                      {isStarting ? "Đang bắt đầu..." : "Bắt đầu chuẩn bị"}
                     </Button>
                   </div>
                 </div>

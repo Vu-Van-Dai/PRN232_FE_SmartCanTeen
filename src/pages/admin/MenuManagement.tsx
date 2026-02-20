@@ -110,12 +110,12 @@ export default function MenuManagement() {
       inventoryApi.restock({ itemId: p.itemId, quantity: p.quantity }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["menu-items"] });
-      toast({ title: "Stock updated", description: "Inventory quantity increased." });
+      toast({ title: "Cập nhật tồn kho", description: "Đã tăng số lượng tồn kho." });
       setRestockOpen(false);
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Restock failed";
-      toast({ title: "Restock failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Nhập kho thất bại";
+      toast({ title: "Nhập kho thất bại", description: msg, variant: "destructive" });
     },
   });
 
@@ -123,12 +123,12 @@ export default function MenuManagement() {
     mutationFn: menuItemsApi.createMenuItem,
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["menu-items"] });
-      toast({ title: "Created", description: "Menu item created." });
+      toast({ title: "Tạo thành công", description: "Đã tạo món." });
       setEditOpen(false);
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Create failed";
-      toast({ title: "Create failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Tạo thất bại";
+      toast({ title: "Tạo thất bại", description: msg, variant: "destructive" });
     },
   });
 
@@ -137,12 +137,12 @@ export default function MenuManagement() {
       menuItemsApi.updateMenuItem(p.id, p.body),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["menu-items"] });
-      toast({ title: "Updated", description: "Menu item updated." });
+      toast({ title: "Cập nhật thành công", description: "Đã cập nhật món." });
       setEditOpen(false);
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Update failed";
-      toast({ title: "Update failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Cập nhật thất bại";
+      toast({ title: "Cập nhật thất bại", description: msg, variant: "destructive" });
     },
   });
 
@@ -150,11 +150,11 @@ export default function MenuManagement() {
     mutationFn: (id: string) => menuItemsApi.deleteMenuItem(id),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["menu-items"] });
-      toast({ title: "Deleted", description: "Menu item deleted." });
+      toast({ title: "Xoá thành công", description: "Đã xoá món." });
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Delete failed";
-      toast({ title: "Delete failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Xoá thất bại";
+      toast({ title: "Xoá thất bại", description: msg, variant: "destructive" });
     },
   });
 
@@ -193,11 +193,11 @@ export default function MenuManagement() {
     const valid: File[] = [];
     for (const file of incoming) {
       if (!file.type.startsWith("image/")) {
-        toast({ title: "Invalid file", description: "Please choose image files only.", variant: "destructive" });
+        toast({ title: "File không hợp lệ", description: "Vui lòng chỉ chọn file ảnh.", variant: "destructive" });
         continue;
       }
       if (file.size > 5 * 1024 * 1024) {
-        toast({ title: "Image too large", description: "Each image must be <= 5MB.", variant: "destructive" });
+        toast({ title: "Ảnh quá lớn", description: "Mỗi ảnh phải ≤ 5MB.", variant: "destructive" });
         continue;
       }
       valid.push(file);
@@ -209,23 +209,23 @@ export default function MenuManagement() {
   const handleSave = async () => {
     const name = formName.trim();
     if (!name) {
-      toast({ title: "Invalid name", description: "Name is required.", variant: "destructive" });
+      toast({ title: "Tên không hợp lệ", description: "Vui lòng nhập tên.", variant: "destructive" });
       return;
     }
     if (!formCategoryId) {
-      toast({ title: "Invalid category", description: "Please choose a category.", variant: "destructive" });
+      toast({ title: "Danh mục không hợp lệ", description: "Vui lòng chọn danh mục.", variant: "destructive" });
       return;
     }
 
     const price = Number(formPrice);
     if (!Number.isFinite(price) || price <= 0) {
-      toast({ title: "Invalid price", description: "Price must be a positive number.", variant: "destructive" });
+      toast({ title: "Giá không hợp lệ", description: "Giá phải là số dương.", variant: "destructive" });
       return;
     }
 
     const inventoryQuantity = Math.floor(Number(formInventory));
     if (!Number.isFinite(inventoryQuantity) || inventoryQuantity < 0) {
-      toast({ title: "Invalid inventory", description: "Inventory must be 0 or more.", variant: "destructive" });
+      toast({ title: "Tồn kho không hợp lệ", description: "Tồn kho phải lớn hơn hoặc bằng 0.", variant: "destructive" });
       return;
     }
 
@@ -269,8 +269,8 @@ export default function MenuManagement() {
         },
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Save failed";
-      toast({ title: "Save failed", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Lưu thất bại";
+      toast({ title: "Lưu thất bại", description: msg, variant: "destructive" });
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
@@ -289,7 +289,7 @@ export default function MenuManagement() {
         
         <Button className="gap-2" onClick={openCreate}>
           <Plus className="w-4 h-4" />
-          Add New Item
+          Thêm món mới
         </Button>
       </div>
       
@@ -371,7 +371,7 @@ export default function MenuManagement() {
                         setRestockOpen(true);
                       }}
                     >
-                      Add Stock
+                      Thêm tồn kho
                     </Button>
 
                     <Button
@@ -381,14 +381,14 @@ export default function MenuManagement() {
                       onClick={() => openEdit(item)}
                     >
                       <Pencil className="h-4 w-4" />
-                      Edit
+                      Sửa
                     </Button>
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="sm" className="gap-2">
                           <Trash2 className="h-4 w-4" />
-                          Delete
+                          Xoá
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -399,12 +399,12 @@ export default function MenuManagement() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>Huỷ</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => deleteMutation.mutate(item.id)}
                             disabled={deleteMutation.isPending}
                           >
-                            Delete
+                            Xoá
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -426,14 +426,14 @@ export default function MenuManagement() {
       <Dialog open={restockOpen} onOpenChange={setRestockOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Stock</DialogTitle>
+            <DialogTitle>Thêm tồn kho</DialogTitle>
             <DialogDescription>
-              Increase inventory quantity for <span className="font-medium">{restockItem?.name ?? ""}</span>.
+              Tăng số lượng tồn kho cho <span className="font-medium">{restockItem?.name ?? ""}</span>.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Quantity</label>
+            <label className="text-sm font-medium">Số lượng</label>
             <Input
               value={restockQty}
               onChange={(e) => setRestockQty(e.target.value)}
@@ -444,21 +444,21 @@ export default function MenuManagement() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setRestockOpen(false)}>
-              Cancel
+              Huỷ
             </Button>
             <Button
               onClick={() => {
                 if (!restockItem) return;
                 const qty = Math.floor(Number(restockQty));
                 if (!Number.isFinite(qty) || qty <= 0) {
-                  toast({ title: "Invalid quantity", description: "Please enter a positive number.", variant: "destructive" });
+                  toast({ title: "Số lượng không hợp lệ", description: "Vui lòng nhập số dương.", variant: "destructive" });
                   return;
                 }
                 restockMutation.mutate({ itemId: restockItem.id, quantity: qty });
               }}
               disabled={restockMutation.isPending || !restockItem}
             >
-              Save
+              Lưu
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -486,20 +486,20 @@ export default function MenuManagement() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editMode === "create" ? "Add Menu Item" : "Edit Menu Item"}</DialogTitle>
+            <DialogTitle>{editMode === "create" ? "Thêm món ăn" : "Chỉnh sửa món ăn"}</DialogTitle>
             <DialogDescription>
-              {editMode === "create" ? "Create a new menu item." : "Update menu item details."}
+              {editMode === "create" ? "Thêm món ăn mới." : "Cập nhật thông tin món ăn."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium">Tên</label>
               <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Banh mi" />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
+              <label className="text-sm font-medium">Danh mục</label>
               <Select value={formCategoryId} onValueChange={setFormCategoryId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a category" />
@@ -516,7 +516,7 @@ export default function MenuManagement() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Price (VND)</label>
+                <label className="text-sm font-medium">Giá (VND)</label>
                 <Input
                   value={formPrice}
                   onChange={(e) => setFormPrice(e.target.value)}
@@ -525,7 +525,7 @@ export default function MenuManagement() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Inventory</label>
+                <label className="text-sm font-medium">Tồn kho</label>
                 <Input
                   value={formInventory}
                   onChange={(e) => setFormInventory(e.target.value)}
@@ -537,19 +537,19 @@ export default function MenuManagement() {
 
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
-                <p className="text-sm font-medium">Active</p>
-                <p className="text-xs text-muted-foreground">Show this item to students</p>
+                <p className="text-sm font-medium">Trạng thái</p>
+                <p className="text-xs text-muted-foreground">Cho học sinh xem mục này.</p>
               </div>
               <Switch checked={formIsActive} onCheckedChange={setFormIsActive} />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Image</label>
+              <label className="text-sm font-medium">Hình Ảnh</label>
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" className="gap-2" onClick={handlePickImage}>
                     <Upload className="h-4 w-4" />
-                    Upload images
+                    Tải lên hình ảnh
                   </Button>
                   {(formImageUrls.length > 0 || formImageFiles.length > 0) && (
                     <Button
@@ -561,7 +561,7 @@ export default function MenuManagement() {
                         if (fileRef.current) fileRef.current.value = "";
                       }}
                     >
-                      Clear all
+                      Xoá tất cả
                     </Button>
                   )}
                 </div>
@@ -595,8 +595,8 @@ export default function MenuManagement() {
                           onClick={() =>
                             setFormImageFiles((prev) => prev.filter((_, i) => i !== idx))
                           }
-                          aria-label="Remove image"
-                          title="Remove"
+                          aria-label="Xoá ảnh"
+                          title="Xoá"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -604,14 +604,14 @@ export default function MenuManagement() {
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">PNG/JPG, up to 5MB each. Uploads to Cloudinary.</p>
+                <p className="text-xs text-muted-foreground">PNG/JPG, tối đa 5MB mỗi ảnh.</p>
               </div>
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancel
+              Huỷ
             </Button>
             <Button
               onClick={handleSave}
@@ -622,7 +622,7 @@ export default function MenuManagement() {
                 !formCategoryId
               }
             >
-              Save
+              Lưu
             </Button>
           </DialogFooter>
         </DialogContent>

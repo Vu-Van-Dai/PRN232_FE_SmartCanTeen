@@ -45,8 +45,8 @@ export default function LoginPage() {
 
     if (!email.trim() || !password) {
       toast({
-        title: "Missing credentials",
-        description: "Please enter your email and password.",
+        title: "Thiếu thông tin đăng nhập",
+        description: "Vui lòng nhập email và mật khẩu.",
         variant: "destructive",
       });
       return;
@@ -73,9 +73,9 @@ export default function LoginPage() {
       const target = getDefaultPathForRoles(roles);
       navigate(target, { replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Login failed";
+      const msg = err instanceof Error ? err.message : "Đăng nhập thất bại";
       toast({
-        title: "Login failed",
+        title: "Đăng nhập thất bại",
         description: msg,
         variant: "destructive",
       });
@@ -106,8 +106,8 @@ export default function LoginPage() {
             </div>
           </div>
           <span className="text-2xl font-bold">
-            <span className="text-orange-500">Canteen</span>
-            <span className="text-indigo-600">Plus</span>
+            <span className="text-orange-500">Smart</span>
+            <span className="text-indigo-600">Canteen</span>
           </span>
         </div>
 
@@ -115,7 +115,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h1>
           <p className="text-gray-500">
-            Refuel your day. Login to access your canteen account.
+           Nạp năng lượng cho ngày mới. Đăng nhập để truy cập tài khoản canteen của bạn.
           </p>
         </div>
 
@@ -123,7 +123,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-semibold text-indigo-600 mb-2">
-              Username or Email
+              Email
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -139,7 +139,7 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-sm font-semibold text-indigo-600 mb-2">
-              Password
+              Mật khẩu
             </label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -170,7 +170,7 @@ export default function LoginPage() {
             disabled={isSubmitting}
             className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg rounded-xl"
           >
-            {isSubmitting ? "Signing In..." : "Sign In"}
+            {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
           </Button>
         </form>
 
@@ -187,15 +187,15 @@ export default function LoginPage() {
           className="w-full h-14 gap-3 border-gray-200 rounded-xl hover:bg-gray-50"
           onClick={() =>
             toast({
-              title: "Not available",
-              description: "School SSO is not implemented yet. Please sign in with email/password.",
+              title: "Chưa hỗ trợ",
+              description: "Đăng nhập SSO của trường hiện chưa được hỗ trợ. Vui lòng đăng nhập bằng email/mật khẩu.",
             })
           }
         >
           <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
             <GraduationCap className="w-4 h-4 text-indigo-600" />
           </div>
-          <span className="text-gray-700 font-medium">Sign in with School Account</span>
+          <span className="text-gray-700 font-medium">Đăng nhập bằng tài khoản trường</span>
         </Button>
 
         {/* Footer */}

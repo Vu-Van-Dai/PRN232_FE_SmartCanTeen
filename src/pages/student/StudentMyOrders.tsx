@@ -129,24 +129,24 @@ export default function StudentMyOrders() {
   const handleReorder = (order: StudentOrderDto) => {
     // In a real implementation, this would add the items back to the cart
     toast({
-      title: "Reorder",
-      description: `Adding items from order #${order.id.substring(0, 8)} to cart...`,
+      title: "Đặt lại",
+      description: `Đang thêm các món từ đơn #${order.id.substring(0, 8)} vào giỏ hàng...`,
     });
     // TODO: Implement reorder logic
   };
 
   const handleCancel = async (orderId: string) => {
-    if (confirm("Are you sure you want to cancel this order?")) {
+    if (confirm("Bạn có chắc chắn muốn huỷ đơn này không?")) {
       try {
         // TODO: Call cancel API when available
         toast({
-          title: "Order cancelled",
-          description: `Order #${orderId.substring(0, 8)} has been cancelled.`,
+          title: "Đã huỷ đơn",
+          description: `Đơn #${orderId.substring(0, 8)} đã được huỷ.`,
         });
       } catch (error) {
         toast({
-          title: "Error",
-          description: "Failed to cancel order",
+          title: "Lỗi",
+          description: "Huỷ đơn thất bại",
           variant: "destructive",
         });
       }

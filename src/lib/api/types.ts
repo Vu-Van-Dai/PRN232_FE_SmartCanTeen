@@ -292,6 +292,59 @@ export type DashboardHourlyResponse = {
   }>;
 };
 
+export type AdminRevenueSeriesPoint = {
+  date: string;
+  label: string;
+  totalRevenue: number;
+  totalDiscountAmount: number;
+  totalCash: number;
+  totalQr: number;
+  totalOnline: number;
+  totalOrders: number;
+  isClosed: boolean;
+  closedAt?: string | null;
+};
+
+export type AdminRevenueSeriesResponse = {
+  mode: "week" | "month" | string;
+  anchorDate: string;
+  points: AdminRevenueSeriesPoint[];
+};
+
+export type AdminOrderItemSummary = {
+  name: string;
+  quantity: number;
+};
+
+export type AdminOrderListItem = {
+  orderId: Guid;
+  createdAt: string;
+  pickupTime: string | null;
+  source: string;
+  paymentMethod: string;
+  totalPrice: number;
+  discountAmount: number;
+  status: string;
+  orderedBy: string;
+  items: AdminOrderItemSummary[];
+};
+
+export type AdminOrdersByDayResponse = {
+  date: string;
+  fromUtc: string;
+  toUtc: string;
+  isClosed: boolean;
+  totals: {
+    totalRevenue: number;
+    totalDiscountAmount: number;
+    totalCash: number;
+    totalQr: number;
+    totalOnline: number;
+    totalOrders: number;
+  };
+  orders: AdminOrderListItem[];
+};
+
 export type DayStatusResponse = {
   date: string;
   isClosed: boolean;
@@ -314,6 +367,7 @@ export type ShiftDetailResponse = {
 export type CreateUserRequest = {
   email: string;
   fullName: string;
+  studentCode?: string;
   password?: string;
   role: string;
 };
@@ -334,6 +388,14 @@ export type AdminUserListItem = {
   fullName: string;
   isActive: boolean;
   roles: string[];
+};
+
+export type ManagerStaffListItem = {
+  id: Guid;
+  email: string;
+  fullName: string;
+  isActive: boolean;
+  secondaryRoles: string[];
 };
 
 export type CreateUserResponse = {

@@ -65,7 +65,7 @@ export default function ShiftClose() {
   const declareMutation = useMutation({
     mutationFn: async () => {
       const shift = await currentShiftQuery.refetch().then((r) => r.data);
-      if (!shift) throw new Error("No active shift");
+      if (!shift) throw new Error("Không có ca đang hoạt động");
 
       const cash = cashInput ?? readCashInput();
       if (cash === null) throw new Error("Vui lòng đếm và nhập Tiền mặt trước");

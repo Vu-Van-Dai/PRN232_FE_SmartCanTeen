@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, UtensilsCrossed, BarChart3, Settings, LogOut, Tags } from "lucide-react";
+import { LayoutDashboard, UtensilsCrossed, BarChart3, Settings, LogOut, Tags, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -8,6 +8,7 @@ const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/manager" },
   { name: "Menu Items", icon: UtensilsCrossed, path: "/manager/menu" },
   { name: "Categories", icon: Tags, path: "/manager/categories" },
+  { name: "Users", icon: Users, path: "/manager/users" },
   { name: "Reports", icon: BarChart3, path: "/manager/reports" },
   { name: "Settings", icon: Settings, path: "/manager/settings" },
 ];

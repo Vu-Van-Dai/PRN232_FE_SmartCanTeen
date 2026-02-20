@@ -97,7 +97,7 @@ export default function ManagerReportsPage() {
   const shiftReportQuery = useQuery({
     queryKey: ["reports", "shift-report", selectedShiftId],
     queryFn: () => {
-      if (!selectedShiftId) throw new Error("No shift selected");
+      if (!selectedShiftId) throw new Error("Chưa chọn ca");
       return reportsApi.getShiftReport(selectedShiftId);
     },
     enabled: !!selectedShiftId && shiftOpen,

@@ -12,6 +12,7 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { ManagerLayout } from "@/components/layout/ManagerLayout";
 import { KitchenLayout } from "@/components/layout/KitchenLayout";
 import { POSLayout } from "@/components/layout/POSLayout";
+import { ParentLayout } from "@/components/layout/ParentLayout";
 
 // Auth Pages
 import LoginPage from "@/pages/auth/LoginPage";
@@ -26,6 +27,11 @@ import StudentWallet from "@/pages/student/StudentWallet";
 import StudentCart from "@/pages/student/StudentCart";
 import StudentMyOrders from "@/pages/student/StudentMyOrders";
 import StudentProfile from "@/pages/student/StudentProfile";
+
+// Parent Pages
+import ParentProfile from "@/pages/parent/ParentProfile";
+import ParentChildOrders from "@/pages/parent/ParentChildOrders";
+import ParentChildSpending from "@/pages/parent/ParentChildSpending";
 
 // Staff Pages
 import POSTerminal from "@/pages/staff/POSTerminal";
@@ -44,12 +50,14 @@ import ShiftManagement from "@/pages/admin/ShiftManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import ShiftDetail from "@/pages/admin/ShiftDetail";
 import PromotionsManagement from "@/pages/admin/PromotionsManagement";
+import AccountLinkingPage from "@/pages/admin/AccountLinkingPage";
 
 // Manager Pages
 import CategoryManagement from "@/pages/manager/CategoryManagement";
 import ManagerReportsPage from "@/pages/manager/ReportsPage";
 import ManagerDashboardPage from "@/pages/manager/DashboardPage";
 import ScreenSettingsPage from "@/pages/manager/ScreenSettingsPage";
+import StaffUsersPage from "@/pages/manager/StaffUsersPage";
 
 // PayOS return/cancel
 import PayosReturn from "@/pages/payos/PayosReturn";
@@ -112,6 +120,16 @@ const App = () => (
                 </Route>
               </Route>
 
+              {/* Parent */}
+              <Route element={<RequireRoles anyOf={["Parent"]} />}>
+                <Route element={<ParentLayout />}>
+                  <Route path="/parent" element={<Navigate to="/parent/profile" replace />} />
+                  <Route path="/parent/profile" element={<ParentProfile />} />
+                  <Route path="/parent/orders" element={<ParentChildOrders />} />
+                  <Route path="/parent/spending" element={<ParentChildSpending />} />
+                </Route>
+              </Route>
+
               {/* Admin */}
               <Route element={<RequireRoles anyOf={["AdminSystem"]} />}>
                 <Route element={<AdminLayout />}>
@@ -119,10 +137,11 @@ const App = () => (
                   <Route path="/admin/menu" element={<MenuManagementReadOnly />} />
                   <Route path="/admin/promotions" element={<PromotionsManagement />} />
                   <Route path="/admin/reports" element={<ReportsPage />} />
+                  <Route path="/admin/account-linking" element={<AccountLinkingPage />} />
                   <Route path="/admin/users" element={<UserManagement />} />
                   <Route path="/admin/shift/:id" element={<ShiftDetail />} />
                   <Route path="/admin/staff" element={<UserManagement />} />
-                  <Route path="/admin/settings" element={<AdminDashboard />} />
+                  <Route path="/admin/settings" element={<Navigate to="/admin" replace />} />
                 </Route>
               </Route>
 
@@ -132,6 +151,7 @@ const App = () => (
                   <Route path="/manager" element={<ManagerDashboardPage />} />
                   <Route path="/manager/menu" element={<MenuManagement />} />
                   <Route path="/manager/categories" element={<CategoryManagement />} />
+                  <Route path="/manager/users" element={<StaffUsersPage />} />
                   <Route path="/manager/reports" element={<ManagerReportsPage />} />
                   <Route path="/manager/settings" element={<ScreenSettingsPage />} />
                 </Route>

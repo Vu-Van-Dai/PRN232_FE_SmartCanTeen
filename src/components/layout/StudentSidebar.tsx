@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  Link2,
   LogOut,
   ShoppingBag,
   User,
@@ -12,14 +13,21 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { hasAnyRole } from "@/lib/auth/role-routing";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const mainLinks = [{ name: "Menu", icon: LayoutGrid, path: "/student/menu" }];
 
 const accountLinks = [
-  { name: "My Wallet", icon: Wallet, path: "/student/wallet" },
-  { name: "My Orders", icon: ShoppingBag, path: "/student/orders" },
-  { name: "Profile", icon: User, path: "/student/profile" },
+  { name: "Ví của tôi", icon: Wallet, path: "/student/wallet" },
+  { name: "Đơn của tôi", icon: ShoppingBag, path: "/student/orders" },
+  { name: "Trang cá nhân", icon: User, path: "/student/profile" },
+];
+
+const parentLinks = [
+  { name: "Liên kết học sinh", icon: Link2, path: "/parent/profile" },
+  { name: "Đơn hàng của con", icon: ShoppingBag, path: "/parent/orders" },
+  { name: "Chi tiêu của con", icon: Wallet, path: "/parent/spending" },
 ];
 
 type StudentSidebarProps = {
@@ -31,6 +39,9 @@ export function StudentSidebar({ collapsed, onToggleCollapsed }: StudentSidebarP
   const location = useLocation();
   const navigate = useNavigate();
   const auth = useAuth();
+
+  const isParent = hasAnyRole(auth.user?.roles ?? [], ["Parent"]);
+  const computedAccountLinks = accountLinks;
   
   return (
     <aside
@@ -63,7 +74,7 @@ export function StudentSidebar({ collapsed, onToggleCollapsed }: StudentSidebarP
               <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
                 <UtensilsCrossed className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="ml-1 font-semibold text-lg">Canteen Connect</span>
+              <span className="ml-1 font-semibold text-lg">Smart Canteen</span>
             </div>
 
             <button
@@ -117,11 +128,11 @@ export function StudentSidebar({ collapsed, onToggleCollapsed }: StudentSidebarP
           <div className={cn("mt-8", collapsed && "mt-6")}>
             {!collapsed && (
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 px-3">
-                Account
+                Tài Khoản
               </p>
             )}
             <nav className="space-y-1">
-              {accountLinks.map((item) => {
+              {computedAccountLinks.map((item) => {
                 const isActive = location.pathname === item.path;
                 const link = (
                   <NavLink
@@ -152,6 +163,47 @@ export function StudentSidebar({ collapsed, onToggleCollapsed }: StudentSidebarP
               })}
             </nav>
           </div>
+
+          {isParent && (
+            <div className={cn("mt-6", collapsed && "mt-5")}>
+              {!collapsed && (
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 px-3">
+                  Phụ huynh
+                </p>
+              )}
+              <nav className="space-y-1">
+                {parentLinks.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  const link = (
+                    <NavLink
+                      key={item.name}
+                      to={item.path}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                        collapsed ? "justify-center px-0" : "",
+                        isActive
+                          ? "bg-secondary text-secondary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                      title={collapsed ? item.name : undefined}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      {!collapsed && item.name}
+                    </NavLink>
+                  );
+
+                  return collapsed ? (
+                    <Tooltip key={item.name}>
+                      <TooltipTrigger asChild>{link}</TooltipTrigger>
+                      <TooltipContent side="right">{item.name}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    link
+                  );
+                })}
+              </nav>
+            </div>
+          )}
         </TooltipProvider>
       </div>
       

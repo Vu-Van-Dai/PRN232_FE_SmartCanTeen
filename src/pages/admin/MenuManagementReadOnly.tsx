@@ -35,8 +35,7 @@ export default function MenuManagementReadOnly() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Menu Items</h1>
-          <p className="text-muted-foreground mt-1">View menu items (read-only).</p>
+          <h1 className="text-3xl font-bold">Món ăn</h1>
         </div>
       </div>
 
@@ -44,7 +43,7 @@ export default function MenuManagementReadOnly() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search food items by name, category..."
+            placeholder="Tìm kiếm món ăn theo tên, danh mục..."
             className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -56,24 +55,24 @@ export default function MenuManagementReadOnly() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Image</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Item Name</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Category</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Price</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Inventory</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Hình ảnh</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Tên món</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Danh mục</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Giá</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Tồn kho</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
                 <td className="px-6 py-6 text-sm text-muted-foreground" colSpan={5}>
-                  Loading…
+                  Đang tải…
                 </td>
               </tr>
             ) : filteredItems.length === 0 ? (
               <tr>
                 <td className="px-6 py-6 text-sm text-muted-foreground" colSpan={5}>
-                  No items found.
+                  Không tìm thấy món ăn.
                 </td>
               </tr>
             ) : (

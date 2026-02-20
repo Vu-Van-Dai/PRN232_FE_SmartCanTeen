@@ -30,14 +30,14 @@ interface Order {
 function taskStatusLabel(taskStatus?: number | null) {
   switch (taskStatus) {
     case 4:
-      return "Completed";
+      return "Hoàn tất";
     case 3:
-      return "Ready";
+      return "Đã xong";
     case 2:
-      return "Preparing";
+      return "Đang chuẩn bị";
     case 1:
     default:
-      return "Pending";
+      return "Chờ";
   }
 }
 
@@ -74,7 +74,7 @@ function getForecastStyle(mins: number) {
       border: "border-red-500/30",
       bg: "bg-red-500/10",
       dot: "bg-red-400",
-      label: "DUE SOON",
+      label: "SẮP ĐẾN HẠN",
     };
   }
 
@@ -84,7 +84,7 @@ function getForecastStyle(mins: number) {
       border: "border-amber-500/30",
       bg: "bg-amber-500/10",
       dot: "bg-amber-400",
-      label: "NEXT UP",
+      label: "TIẾP THEO",
     };
   }
 
@@ -93,7 +93,7 @@ function getForecastStyle(mins: number) {
     border: "border-blue-500/30",
     bg: "bg-blue-500/10",
     dot: "bg-blue-400",
-    label: "UPCOMING",
+    label: "SẮP TỚI",
   };
 }
 
@@ -474,54 +474,6 @@ export default function KitchenKDS() {
             })}
           </div>
 
-          {/* Completed (small) */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <h3 className="font-semibold text-white text-sm">COMPLETED</h3>
-              </div>
-              <span className="text-xs text-slate-500">{(data?.completed ?? []).length}</span>
-            </div>
-
-            <div className="space-y-2">
-              {(data?.completed ?? []).slice(0, 6).map((x) => (
-                <div
-                  key={x.id}
-                  className="bg-slate-800 rounded-xl p-3 border border-slate-700"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-white truncate">#{x.id.slice(0, 6)}</div>
-                      <div className="text-xs text-slate-400 truncate">{x.orderedBy}</div>
-                    </div>
-                    <div className="text-[10px] text-slate-500 whitespace-nowrap">
-                      {x.stationTaskCompletedAt ? formatDueTimeLocal(x.stationTaskCompletedAt) : "Done"}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {!isLoading && !isError && (data?.completed ?? []).length === 0 && (
-                <div className="text-xs text-slate-500">No completed items yet.</div>
-              )}
-            </div>
-          </div>
-
-          {/* Staff Notice */}
-          <div className="mt-5 bg-slate-800 rounded-xl p-3 border border-slate-700">
-            <div className="flex items-start gap-2">
-              <div className="w-7 h-7 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <Info className="w-3.5 h-3.5 text-blue-400" />
-              </div>
-              <div>
-                <h4 className="font-medium text-xs text-white">Staff Notice</h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Delivery of fresh produce expected at 12:15 PM via Back Door.
-                </p>
-              </div>
-            </div>
-          </div>
         </aside>
       </div>
     </div>

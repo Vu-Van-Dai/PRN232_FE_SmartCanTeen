@@ -60,7 +60,7 @@ export default function ScreenSettingsPage() {
       toast({ title: editingId ? "Đã cập nhật" : "Đã tạo màn hình" });
     },
     onError: (err) => {
-      toast({ title: "Tạo màn hình thất bại", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" });
+      toast({ title: "Tạo màn hình thất bại", description: err instanceof Error ? err.message : "Lỗi không xác định", variant: "destructive" });
     },
   });
 
@@ -71,7 +71,7 @@ export default function ScreenSettingsPage() {
       toast({ title: "Đã xóa" });
     },
     onError: (err) => {
-      toast({ title: "Xóa thất bại", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" });
+      toast({ title: "Xóa thất bại", description: err instanceof Error ? err.message : "Lỗi không xác định", variant: "destructive" });
     },
   });
 

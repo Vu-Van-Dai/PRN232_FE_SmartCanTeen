@@ -40,12 +40,12 @@ export async function uploadImageToCloudinary(
 
   const body = (await res.json().catch(() => null)) as any;
   if (!res.ok) {
-    const msg = body?.error?.message ?? `Cloudinary upload failed (${res.status})`;
+    const msg = body?.error?.message ?? `Tải ảnh lên Cloudinary thất bại (${res.status})`;
     throw new Error(msg);
   }
 
   const url: string | undefined = body?.secure_url;
-  if (!url) throw new Error("Cloudinary did not return secure_url");
+  if (!url) throw new Error("Cloudinary không trả về secure_url");
 
   return { url, publicId: body?.public_id };
 }

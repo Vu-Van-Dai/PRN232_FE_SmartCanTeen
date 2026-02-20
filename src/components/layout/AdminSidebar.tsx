@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, UtensilsCrossed, Users, BarChart3, Settings, LogOut, Tag } from "lucide-react";
+import { LayoutDashboard, UtensilsCrossed, Users, BarChart3, LogOut, Tag, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -10,8 +10,8 @@ const menuItems = [
   { name: "Menu Items", icon: UtensilsCrossed, path: "/admin/menu" },
   { name: "Khuyến mãi", icon: Tag, path: "/admin/promotions" },
   { name: "Users", icon: Users, path: "/admin/users" },
+  { name: "Account Linking", icon: Link2, path: "/admin/account-linking" },
   { name: "Reports", icon: BarChart3, path: "/admin/reports" },
-  { name: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
 interface AdminSidebarProps {
