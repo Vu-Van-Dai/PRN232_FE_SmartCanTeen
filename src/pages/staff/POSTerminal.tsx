@@ -267,13 +267,18 @@ export default function POSTerminal() {
 
       const pendingOrderId = getPendingOrderIdFromDraft();
       if (pendingOrderId) {
-        await ordersApi.payExistingPosOrderByCash(pendingOrderId);
+        await ordersApi.payExistingPosOrderByCash(pendingOrderId, {
+          amountReceived: cashReceived,
+          changeAmount: cashChange,
+        });
         return { orderId: pendingOrderId };
       }
 
       const totalPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       return ordersApi.createPosOfflineOrderCash({
         totalPrice,
+        amountReceived: cashReceived,
+        changeAmount: cashChange,
         items: orderItems.map((i) => ({ itemId: i.id, quantity: i.quantity })),
       });
     },

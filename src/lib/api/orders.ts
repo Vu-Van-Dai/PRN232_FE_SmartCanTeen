@@ -5,6 +5,7 @@ import type {
   CreateOnlineOrderRequest,
   CreateOnlineOrderResponse,
   Guid,
+  PayPosOrderByCashRequest,
   PosPaymentStatusResponse,
   StudentOrderDto,
 } from "./types";
@@ -39,9 +40,10 @@ export function createPosOfflineOrderCash(body: CreateOfflineOrderRequest) {
 }
 
 // Staff/POS/Manager
-export function payExistingPosOrderByCash(orderId: Guid) {
+export function payExistingPosOrderByCash(orderId: Guid, body?: PayPosOrderByCashRequest) {
   return apiRequest<void>(`/api/pos/orders/${orderId}/cash`, {
     method: "POST",
+    body,
   });
 }
 
