@@ -466,7 +466,6 @@ export default function ManagerReportsPage() {
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Chi tiết đơn</DialogTitle>
-            <DialogDescription>Hiển thị kiểu hóa đơn (read-only).</DialogDescription>
           </DialogHeader>
 
           {selectedOrder && (
@@ -548,6 +547,34 @@ export default function ManagerReportsPage() {
                   </div>
                   <div className="text-xs opacity-80">Số lượng món: {selectedOrder.items.reduce((a, b) => a + b.quantity, 0)}</div>
                 </div>
+
+                {String(selectedOrder.source).toLowerCase() === "cash" && (
+                  <>
+                    <div className="mt-3 border-t border-dashed border-black/40" />
+                    <div className="mt-3 space-y-1">
+                      <div className="flex justify-between">
+                        <span>CASH</span>
+                        <span>{formatVnd(selectedOrder.amountReceived ?? selectedOrder.totalPrice)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Thừa</span>
+                        <span>{formatVnd(selectedOrder.changeAmount ?? 0)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {String(selectedOrder.source).toLowerCase() === "qr" && (
+                  <>
+                    <div className="mt-3 border-t border-dashed border-black/40" />
+                    <div className="mt-3 space-y-1">
+                      <div className="flex justify-between">
+                        <span>VietQR</span>
+                        <span>{formatVnd(selectedOrder.amountReceived ?? selectedOrder.totalPrice)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

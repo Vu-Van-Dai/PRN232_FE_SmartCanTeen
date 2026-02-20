@@ -118,7 +118,14 @@ export type CreateOfflineOrderItem = {
 
 export type CreateOfflineOrderRequest = {
   totalPrice: number;
+  amountReceived?: number | null;
+  changeAmount?: number | null;
   items: CreateOfflineOrderItem[];
+};
+
+export type PayPosOrderByCashRequest = {
+  amountReceived?: number | null;
+  changeAmount?: number | null;
 };
 
 export type CreateOfflineOrderResponse = {
@@ -234,6 +241,8 @@ export type ShiftOrderListItem = {
   orderId: Guid;
   createdAt: string;
   source: "Cash" | "QR" | "Online" | string;
+  amountReceived?: number | null;
+  changeAmount?: number | null;
   subTotal: number;
   discountAmount: number;
   vatRate: number;
