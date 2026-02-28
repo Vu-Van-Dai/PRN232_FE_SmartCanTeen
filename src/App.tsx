@@ -37,6 +37,7 @@ import ParentChildSpending from "@/pages/parent/ParentChildSpending";
 import POSTerminal from "@/pages/staff/POSTerminal";
 import ShiftClose from "@/pages/staff/ShiftClose";
 import ShiftCountCash from "@/pages/staff/ShiftCountCash";
+import PosRefundPage from "@/pages/staff/PosRefundPage";
 import KitchenDashboard from "@/pages/staff/KitchenDashboard";
 import KitchenKDS from "@/pages/staff/KitchenKDS";
 import DrinkBoard from "@/pages/staff/DrinkBoard";
@@ -182,6 +183,7 @@ const App = () => (
               <Route element={<RequireRoles anyOf={["StaffPOS", "Staff", "Manager", "AdminSystem"]} />}>
                 <Route element={<POSLayout />}>
                   <Route path="/pos" element={<POSTerminal />} />
+                  <Route path="/pos/refund" element={<PosRefundPage />} />
                   <Route path="/pos/shift-close" element={<ShiftClose />} />
                   <Route path="/pos/shift-close/cash" element={<ShiftCountCash />} />
                 </Route>

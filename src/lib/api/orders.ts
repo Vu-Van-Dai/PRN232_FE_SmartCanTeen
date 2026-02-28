@@ -6,7 +6,10 @@ import type {
   CreateOnlineOrderResponse,
   Guid,
   PayPosOrderByCashRequest,
+  PosRefundInfoResponse,
   PosPaymentStatusResponse,
+  RefundPosOrderRequest,
+  RefundReceiptResponse,
   StudentOrderDto,
 } from "./types";
 
@@ -57,6 +60,38 @@ export function cancelExistingPosOrder(orderId: Guid) {
 // Staff/POS/Manager
 export function getPosOrderPaymentStatus(orderId: Guid) {
   return apiRequest<PosPaymentStatusResponse>(`/api/pos/orders/${orderId}/payment-status`);
+}
+
+// Staff/POS/Manager
+export function getPosOrderRefundInfo(orderId: Guid) {
+  return apiRequest<PosRefundInfoResponse>(`/api/pos/orders/${orderId}/refund-info`);
+}
+
+// Staff/POS/Manager
+// Lookup by short key (e.g. first 8 chars shown on receipts) or GUID.
+export function getPosOrderRefundInfoByKey(orderKey: string) {
+  return apiRequest<PosRefundInfoResponse>(`/api/pos/orders/refund-info/${encodeURIComponent(orderKey)}`);
+}
+
+// Staff/POS/Manager
+export function refundPosOrder(orderId: Guid, body: RefundPosOrderRequest) {
+  return apiRequest<RefundReceiptResponse>(`/api/pos/orders/${orderId}/refund`, {
+    method: "POST",
+    body,
+  });
+}
+
+export type RefundPosOrderItemsRequest = {
+  items: Array<{ orderItemId: Guid; quantity: number }>;
+  amountReturned?: number | null;
+  reason?: string | null;
+};
+
+export function refundPosOrderByItems(orderId: Guid, body: RefundPosOrderItemsRequest) {
+  return apiRequest<RefundReceiptResponse>(`/api/pos/orders/${orderId}/refund-items`, {
+    method: "POST",
+    body,
+  });
 }
 
 // Student/Parent

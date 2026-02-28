@@ -47,12 +47,15 @@ export type UpdateCategoryRequest = {
   isActive: boolean;
 };
 
+export type ProductType = "Prepared" | "ReadyMade";
+
 export type MenuItemResponse = {
   id: Guid;
   categoryId: Guid;
   categoryName: string;
   name: string;
   price: number;
+  productType?: ProductType;
   inventoryQuantity: number;
   imageUrls?: string[] | null;
   imageUrl?: string | null;
@@ -64,6 +67,7 @@ export type CreateMenuItemRequest = {
   categoryId: Guid;
   name: string;
   price: number;
+  productType?: ProductType;
   inventoryQuantity: number;
   imageUrls?: string[] | null;
   imageUrl?: string | null;
@@ -73,6 +77,7 @@ export type CreateMenuItemRequest = {
 export type UpdateMenuItemRequest = {
   name: string;
   price: number;
+  productType?: ProductType;
   inventoryQuantity: number;
   imageUrls?: string[] | null;
   imageUrl?: string | null;
@@ -126,6 +131,53 @@ export type CreateOfflineOrderRequest = {
 export type PayPosOrderByCashRequest = {
   amountReceived?: number | null;
   changeAmount?: number | null;
+};
+
+export type RefundPosOrderRequest = {
+  refundAmount: number;
+  amountReturned?: number | null;
+  reason?: string | null;
+};
+
+export type PosRefundInfoResponse = {
+  orderId: Guid;
+  createdAt: string;
+  totalPrice: number;
+  paymentMethod: string;
+  status: string;
+  amountReceived?: number | null;
+  changeAmount?: number | null;
+  refundedTotal: number;
+  refundableRemaining: number;
+  items: Array<{
+    orderItemId: Guid;
+    itemId: Guid;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+    refundedQuantity: number;
+    refundableQuantity: number;
+  }>;
+  refunds: Array<{
+    refundReceiptId: Guid;
+    refundAmount: number;
+    amountReturned: number;
+    refundMethod: string;
+    performedByUserId: Guid;
+    createdAt: string;
+    reason: string;
+  }>;
+};
+
+export type RefundReceiptResponse = {
+  refundReceiptId: Guid;
+  orderId: Guid;
+  refundAmount: number;
+  amountReturned: number;
+  refundMethod: string;
+  performedByUserId: Guid;
+  createdAt: string;
+  reason: string;
 };
 
 export type CreateOfflineOrderResponse = {
@@ -256,6 +308,40 @@ export type ShiftOrderListItem = {
   items: ShiftOrderItem[];
 };
 
+export type ShiftRefundReceiptItem = {
+  orderItemId: Guid;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+
+export type ShiftRefundReceipt = {
+  refundReceiptId: Guid;
+  originalOrderId: Guid;
+  createdAt: string;
+  refundAmount: number;
+  amountReturned: number;
+  refundMethod: string;
+  performedBy: {
+    id: Guid;
+    name: string;
+  };
+  reason: string;
+  items: ShiftRefundReceiptItem[];
+};
+
+export type ShiftTransactionListItem = {
+  transactionId: Guid;
+  createdAt: string;
+  amount: number;
+  paymentMethod: string;
+  purpose: string;
+  orderId?: Guid | null;
+  refundReceiptId?: Guid | null;
+  refundReceipt?: ShiftRefundReceipt | null;
+};
+
 export type ShiftReportResponse = {
   shiftId: Guid;
   operationalDate: string;
@@ -276,6 +362,7 @@ export type ShiftReportResponse = {
     totalOrders: number;
     totalItemsSold: number;
   };
+  transactions: ShiftTransactionListItem[];
   orders: ShiftOrderListItem[];
 };
 

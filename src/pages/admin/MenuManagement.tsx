@@ -33,6 +33,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { categoriesApi, inventoryApi, menuItemsApi, type MenuItemResponse } from "@/lib/api";
+import type { ProductType } from "@/lib/api/types";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
 
 function formatVND(amount: number) {
@@ -51,6 +52,7 @@ export default function MenuManagement() {
   const [editingItem, setEditingItem] = useState<MenuItemResponse | null>(null);
   const [formName, setFormName] = useState("");
   const [formCategoryId, setFormCategoryId] = useState<string>("");
+  const [formProductType, setFormProductType] = useState<ProductType>("Prepared");
   const [formPrice, setFormPrice] = useState("");
   const [formInventory, setFormInventory] = useState("");
   const [formIsActive, setFormIsActive] = useState(true);
@@ -168,6 +170,7 @@ export default function MenuManagement() {
     setFormImageUrls([]);
     setFormImageFiles([]);
     setFormCategoryId(categories[0]?.id ?? "");
+    setFormProductType("Prepared");
     setEditOpen(true);
   };
 
@@ -176,6 +179,7 @@ export default function MenuManagement() {
     setEditingItem(item);
     setFormName(item.name);
     setFormCategoryId(item.categoryId);
+    setFormProductType(item.productType ?? "Prepared");
     setFormPrice(String(item.price));
     setFormInventory(String(item.inventoryQuantity));
     setFormIsActive(Boolean(item.isActive));
@@ -247,6 +251,7 @@ export default function MenuManagement() {
           categoryId: formCategoryId,
           name,
           price,
+          productType: formProductType,
           inventoryQuantity,
           imageUrls,
           imageUrl,
@@ -261,6 +266,7 @@ export default function MenuManagement() {
         body: {
           name,
           price,
+          productType: formProductType,
           inventoryQuantity,
           imageUrls,
           imageUrl,
@@ -510,6 +516,19 @@ export default function MenuManagement() {
                       {c.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Loại sản phẩm</label>
+              <Select value={formProductType} onValueChange={(v) => setFormProductType(v as ProductType)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn loại" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Prepared">Prepared (cần bếp)</SelectItem>
+                  <SelectItem value="ReadyMade">ReadyMade (đóng gói sẵn)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
