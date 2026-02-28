@@ -26,7 +26,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { Calendar, Download, Eye, FileText, LockKeyhole, ReceiptText, RefreshCcw } from "lucide-react";
-import type { Guid, ShiftOrderListItem } from "@/lib/api/types";
+import type { Guid, ShiftOrderListItem, ShiftRefundReceipt } from "@/lib/api/types";
 
 function formatVnd(amount: number) {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount ?? 0);
@@ -47,6 +47,9 @@ export default function ManagerReportsPage() {
   const [selectedShiftId, setSelectedShiftId] = useState<Guid | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<ShiftOrderListItem | null>(null);
   const [orderOpen, setOrderOpen] = useState(false);
+
+  const [selectedRefund, setSelectedRefund] = useState<ShiftRefundReceipt | null>(null);
+  const [refundOpen, setRefundOpen] = useState(false);
 
   const [salesOpen, setSalesOpen] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
@@ -299,6 +302,8 @@ export default function ManagerReportsPage() {
           if (!open) {
             setSelectedOrder(null);
             setOrderOpen(false);
+            setSelectedRefund(null);
+            setRefundOpen(false);
           }
         }}
       >
@@ -306,7 +311,7 @@ export default function ManagerReportsPage() {
           <DialogHeader>
             <DialogTitle>Chi tiết ca</DialogTitle>
             <DialogDescription>
-              Thông tin ca, doanh thu theo nguồn, thống kê và danh sách đơn (read-only).
+              Thông tin ca, doanh thu theo nguồn, thống kê và danh sách giao dịch (read-only).
             </DialogDescription>
           </DialogHeader>
 
@@ -393,7 +398,7 @@ export default function ManagerReportsPage() {
               <div className="lg:col-span-2">
                 <Card>
                   <div className="p-4 border-b">
-                    <div className="font-semibold">Danh sách đơn trong ca (read-only)</div>
+                    <div className="font-semibold">Danh sách giao dịch trong ca (read-only)</div>
                     <div className="text-sm text-muted-foreground">Không cho sửa / không cho đổi trạng thái.</div>
                   </div>
                   <ScrollArea className="h-[520px]">
@@ -401,53 +406,85 @@ export default function ManagerReportsPage() {
                       <table className="w-full">
                         <thead>
                           <tr className="border-b border-border">
-                            <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Order ID</th>
+                            <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Txn ID</th>
                             <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Thời gian</th>
-                            <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Nguồn</th>
-                            <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Tổng tiền</th>
-                            <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Trạng thái</th>
+                            <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Loại</th>
+                            <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Phương thức</th>
+                            <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Số tiền</th>
                             <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {shiftReport.orders.map((o) => (
-                            <tr key={o.orderId} className="border-b border-border last:border-0">
-                              <td className="px-4 py-3 font-medium">{String(o.orderId).slice(0, 8)}</td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(o.createdAt).toLocaleString()}</td>
-                              <td className="px-4 py-3">
-                                <Badge variant="outline">{o.source}</Badge>
-                              </td>
-                              <td className="px-4 py-3 text-right font-medium">{formatVnd(o.totalPrice)}</td>
-                              <td className="px-4 py-3">
-                                {String(o.status).toLowerCase() === "cancelled" ? (
-                                  <Badge variant="destructive">Cancelled</Badge>
-                                ) : String(o.status).toLowerCase() === "completed" ? (
-                                  <Badge variant="secondary">Completed</Badge>
-                                ) : (
-                                  <Badge>{o.status}</Badge>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-2"
-                                  onClick={() => {
-                                    setSelectedOrder(o);
-                                    setOrderOpen(true);
-                                  }}
-                                >
-                                  <ReceiptText className="w-4 h-4" />
-                                  Xem đơn
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
+                          {shiftReport.transactions.map((t) => {
+                            const isRefund = String(t.purpose).toLowerCase().includes("refund");
+                            const label = isRefund ? "Refund" : "Order";
+                            return (
+                              <tr key={t.transactionId} className="border-b border-border last:border-0">
+                                <td className="px-4 py-3 font-medium">{String(t.transactionId).slice(0, 8)}</td>
+                                <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</td>
+                                <td className="px-4 py-3">
+                                  <Badge variant={isRefund ? "destructive" : "outline"}>{label}</Badge>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="secondary">{t.paymentMethod}</Badge>
+                                </td>
+                                <td className="px-4 py-3 text-right font-medium">{formatVnd(t.amount)}</td>
+                                <td className="px-4 py-3 text-right">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2"
+                                    onClick={() => {
+                                      if (isRefund) {
+                                        if (!t.refundReceipt) {
+                                          toast({
+                                            title: "Không tải được biên lai hủy",
+                                            description: "Thiếu dữ liệu refundReceipt trong shift report.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        setSelectedRefund(t.refundReceipt);
+                                        setRefundOpen(true);
+                                        return;
+                                      }
 
-                          {shiftReport.orders.length === 0 && (
+                                      const orderId = t.orderId;
+                                      if (!orderId) {
+                                        toast({
+                                          title: "Không xem được đơn",
+                                          description: "Thiếu orderId trong giao dịch.",
+                                          variant: "destructive",
+                                        });
+                                        return;
+                                      }
+
+                                      const found = shiftReport.orders.find((o) => String(o.orderId) === String(orderId));
+                                      if (!found) {
+                                        toast({
+                                          title: "Không tìm thấy đơn",
+                                          description: "Đơn không nằm trong danh sách orders của ca.",
+                                          variant: "destructive",
+                                        });
+                                        return;
+                                      }
+
+                                      setSelectedOrder(found);
+                                      setOrderOpen(true);
+                                    }}
+                                  >
+                                    <ReceiptText className="w-4 h-4" />
+                                    Xem
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+
+                          {shiftReport.transactions.length === 0 && (
                             <tr>
                               <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                                Chưa có đơn trong ca này.
+                                Chưa có giao dịch trong ca này.
                               </td>
                             </tr>
                           )}
@@ -456,6 +493,82 @@ export default function ManagerReportsPage() {
                     </div>
                   </ScrollArea>
                 </Card>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Biên lai hủy</DialogTitle>
+          </DialogHeader>
+
+          {selectedRefund && (
+            <div className="rounded-lg border bg-white text-black">
+              <div className="p-4 font-mono text-sm">
+                <div className="text-center">
+                  <div className="font-bold">SMART CANTEEN</div>
+                  <div className="text-xs">BIÊN LAI HỦY</div>
+                </div>
+
+                <div className="mt-3 space-y-1">
+                  <div className="flex justify-between gap-2">
+                    <span>Đơn gốc</span>
+                    <span className="font-bold">#{String(selectedRefund.originalOrderId).slice(0, 6).toUpperCase()}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span>Thời gian hủy</span>
+                    <span>{new Date(selectedRefund.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span>Nhân viên</span>
+                    <span>{selectedRefund.performedBy?.name ?? "-"}</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 border-t border-dashed border-black/40" />
+
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs">
+                    <span>Món</span>
+                    <span>Tiền</span>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {selectedRefund.items.map((it) => (
+                      <div key={it.orderItemId}>
+                        <div className="flex justify-between gap-2">
+                          <span className="truncate">{it.name}</span>
+                          <span>{formatVnd(-it.lineTotal)}</span>
+                        </div>
+                        <div className="text-xs opacity-80">SL {it.quantity}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-3 border-t border-dashed border-black/40" />
+
+                <div className="mt-3 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="font-bold">TỔNG HOÀN</span>
+                    <span className="font-bold">{formatVnd(-selectedRefund.refundAmount)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 border-t border-dashed border-black/40" />
+
+                <div className="mt-3 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Phương thức</span>
+                    <span>{selectedRefund.refundMethod}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span>Lý do</span>
+                    <span className="text-right break-words">{selectedRefund.reason || "-"}</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -471,6 +584,18 @@ export default function ManagerReportsPage() {
           {selectedOrder && (
             <div className="rounded-lg border bg-white text-black">
               <div className="p-4 font-mono text-sm">
+                {(() => {
+                  const vatRate = selectedOrder.vatRate ?? 0.08;
+                  const total = selectedOrder.totalPrice ?? 0;
+                  const vatFromApi = selectedOrder.vatAmount;
+                  const fallbackBase = vatRate > 0 ? Math.max(0, Math.round(total / (1 + vatRate))) : Math.max(0, total);
+                  const fallbackVat = Math.max(0, total - fallbackBase);
+                  const vat = Math.max(0, vatFromApi ?? fallbackVat);
+                  const base = Math.max(0, total - vat);
+                  const discount = Math.max(0, selectedOrder.discountAmount ?? 0);
+
+                  return (
+                    <>
                 <div className="text-center">
                   <div className="font-bold">SMART CANTEEN</div>
                   <div className="text-xs">PHIẾU TÍNH TIỀN</div>
@@ -525,17 +650,19 @@ export default function ManagerReportsPage() {
 
                 <div className="mt-3 space-y-1">
                   <div className="flex justify-between">
-                    <span>Giá trị chưa thuế</span>
-                    <span>{formatVnd(selectedOrder.subTotal - (selectedOrder.discountAmount ?? 0))}</span>
+                    <span>G.trị chưa thuế</span>
+                    <span>{formatVnd(base)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Discount</span>
-                    <span>{formatVnd(selectedOrder.discountAmount ?? 0)}</span>
+                    <span>VAT ({(vatRate * 100).toFixed(2)}% của {formatVnd(base)})</span>
+                    <span>{formatVnd(vat)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>VAT ({Math.round((selectedOrder.vatRate ?? 0.08) * 100)}%)</span>
-                    <span>{formatVnd(selectedOrder.vatAmount ?? 0)}</span>
-                  </div>
+                  {discount > 0 ? (
+                    <div className="flex justify-between">
+                      <span>Discount</span>
+                      <span>{formatVnd(discount)}</span>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="mt-3 border-t border-dashed border-black/40" />
@@ -575,6 +702,9 @@ export default function ManagerReportsPage() {
                     </div>
                   </>
                 )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}

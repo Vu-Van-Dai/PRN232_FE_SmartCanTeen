@@ -362,9 +362,10 @@ export default function POSTerminal() {
     setOrderItems(orderItems.filter((o) => o.id !== id));
   };
   
-  const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = Math.round(subtotal * 0.08);
-  const total = subtotal + tax;
+  // Menu prices are VAT-inclusive. Derive VAT portion from total.
+  const total = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const tax = Math.round(total * (0.08 / 1.08));
+  const subtotal = Math.max(0, total - tax);
 
   const [cashDigits, setCashDigits] = useState<string>("");
   const cashReceived = useMemo(() => (cashDigits ? Number(cashDigits) : 0), [cashDigits]);

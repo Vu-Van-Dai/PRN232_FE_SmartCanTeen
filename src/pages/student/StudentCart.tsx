@@ -81,9 +81,10 @@ export default function StudentCart() {
     retry: false,
   });
 
-  const subtotal = cart.subtotal;
-  const vat = subtotal * 0.08;
-  const total = subtotal + vat;
+  // Menu prices are VAT-inclusive. Derive VAT portion from total.
+  const total = cart.subtotal;
+  const vat = Math.round(total * (0.08 / 1.08));
+  const subtotal = Math.max(0, total - vat);
 
   const itemLabel = useMemo(() => {
     const n = cart.itemCount;

@@ -33,6 +33,17 @@ export function POSLayout() {
         </div>
         
         <div className="flex items-center gap-4">
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              navigate("/pos/refund");
+            }}
+          >
+            Hủy bill
+          </Button>
           
           <Button
             variant="default"
