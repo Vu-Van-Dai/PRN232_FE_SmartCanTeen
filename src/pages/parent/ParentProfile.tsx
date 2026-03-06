@@ -109,7 +109,7 @@ export default function ParentProfile() {
           <p className="text-sm text-muted-foreground">Nhập email của học sinh.</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             value={linkQuery}
             onChange={(e) => setLinkQuery(e.target.value)}
@@ -118,6 +118,7 @@ export default function ParentProfile() {
           <Button
             onClick={() => linkMutation.mutate(linkQuery)}
             disabled={!linkQuery.trim() || linkMutation.isPending}
+            className="w-full sm:w-auto"
           >
             Liên kết
           </Button>
@@ -130,7 +131,7 @@ export default function ParentProfile() {
           ) : !children.length ? (
             <p className="text-sm text-muted-foreground">Chưa có học sinh được liên kết.</p>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <Select
                 value={selectedChildId ?? undefined}
                 onValueChange={(v) => {
@@ -157,6 +158,7 @@ export default function ParentProfile() {
               <Button
                 variant="destructive"
                 disabled={!selectedChildId || unlinkMutation.isPending}
+                className="w-full sm:w-auto"
                 onClick={() => {
                   if (!selectedChildId) return;
                   if (confirm("Bạn có chắc chắn muốn huỷ liên kết học sinh này không?")) {

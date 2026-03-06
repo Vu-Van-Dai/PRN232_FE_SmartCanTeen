@@ -171,7 +171,7 @@ export default function StudentMyOrders() {
           <UtensilsCrossed className="mx-auto h-16 w-16 text-muted-foreground mb-4 opacity-50" />
           <h2 className="text-2xl font-semibold mb-2">Không có đơn đang hoạt động</h2>
           <p className="text-muted-foreground mb-6">Hiện tại bạn chưa có đơn nào.</p>
-          <Button onClick={() => navigate("/student/menu")} className="gap-2">
+          <Button onClick={() => navigate("/student/menu")} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />
             Đi đến Menu
           </Button>
@@ -187,7 +187,7 @@ export default function StudentMyOrders() {
           <UtensilsCrossed className="h-14 w-14 text-muted-foreground mb-3 opacity-60" />
           <h2 className="text-xl font-semibold">Không có đơn đang hoạt động</h2>
           <p className="text-sm text-muted-foreground mt-1 mb-5">Xem lịch sử bên dưới hoặc đặt món mới.</p>
-          <Button onClick={() => navigate("/student/menu")} className="gap-2">
+          <Button onClick={() => navigate("/student/menu")} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />
             Đi đến Menu
           </Button>
@@ -207,9 +207,9 @@ export default function StudentMyOrders() {
                   key={order.id}
                   className="border border-border rounded-lg p-4 bg-card hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="font-mono text-sm text-muted-foreground">
                           Đơn #{order.id.substring(0, 8).toUpperCase()}
                         </span>
@@ -226,7 +226,7 @@ export default function StudentMyOrders() {
                         {items.length} món • {formatVND(order.totalPrice)}
                       </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => handleReorder(order)}>
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => handleReorder(order)}>
                       Đặt lại
                     </Button>
                   </div>
@@ -268,9 +268,9 @@ export default function StudentMyOrders() {
                       setExpandedOrderId(expandedOrderId === order.id ? null : order.id)
                     }
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="font-mono text-sm text-muted-foreground">
                             Đơn #{order.id.substring(0, 8).toUpperCase()}
                           </span>
@@ -283,7 +283,7 @@ export default function StudentMyOrders() {
                             {getStatusLabel(order.status)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
                             <span>Dự kiến: {formatTime(order.pickupTime)}</span>
@@ -295,8 +295,8 @@ export default function StudentMyOrders() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
+                      <div className="flex items-center justify-between sm:justify-start gap-3">
+                        <div className="text-left sm:text-right">
                           <p className="font-semibold text-lg">{formatVND(order.totalPrice)}</p>
                           <p className="text-xs text-muted-foreground">{items.length} món</p>
                         </div>
@@ -322,8 +322,8 @@ export default function StudentMyOrders() {
                               key={idx}
                               className="flex items-center justify-between text-sm py-2 border-b border-border/50 last:border-0"
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{item.name}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-medium truncate">{item.name}</span>
                                 <span className="text-xs text-muted-foreground">x{item.quantity}</span>
                               </div>
                               <span className="text-muted-foreground">
@@ -412,9 +412,9 @@ export default function StudentMyOrders() {
                   key={order.id}
                   className="border border-border rounded-lg p-4 bg-card hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="font-mono text-sm text-muted-foreground">
                           Đơn #{order.id.substring(0, 8).toUpperCase()}
                         </span>
@@ -453,6 +453,7 @@ export default function StudentMyOrders() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleReorder(order)}
+                      className="w-full sm:w-auto"
                     >
                       Đặt lại
                     </Button>

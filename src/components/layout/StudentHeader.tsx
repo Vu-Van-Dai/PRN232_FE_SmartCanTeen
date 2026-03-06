@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, ChevronDown, LogOut, Search, ShoppingBag, ShoppingCart, User, Wallet } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, Search, ShoppingBag, ShoppingCart, User, Wallet, X } from "lucide-react";
 import type { HubConnection } from "@microsoft/signalr";
 import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { Input } from "@/components/ui/input";
@@ -26,11 +26,15 @@ import { toast } from "@/hooks/use-toast";
 interface StudentHeaderProps {
   userName?: string;
   userRole?: string;
+  mobileNavOpen?: boolean;
+  onToggleMobileNav?: () => void;
 }
 
 export function StudentHeader({ 
   userName,
-  userRole
+  userRole,
+  mobileNavOpen,
+  onToggleMobileNav,
 }: StudentHeaderProps) {
   const { user } = useAuth();
   const auth = useAuth();
@@ -162,19 +166,35 @@ export function StudentHeader({
   }, [resolvedName]);
 
   return (
-    <header className="h-16 bg-card border-b border-border px-6 flex items-center justify-between sticky top-0 z-40">
-      {/* Search */}
-      <div className="relative w-96">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input 
-          type="text"
-          placeholder="Search for food, drinks..."
-          className="pl-10 bg-muted/50 border-0"
-        />
-      </div>
-      
-      {/* Right Side */}
-      <div className="flex items-center gap-4">
+    <header className="bg-card border-b border-border px-4 md:px-6 sticky top-0 z-40 py-3 md:py-0 md:h-16">
+      <div className="flex items-center justify-between gap-3">
+        {/* Mobile: menu + title */}
+        <div className="flex items-center gap-2 min-w-0 md:hidden">
+          {onToggleMobileNav && (
+            <button
+              type="button"
+              onClick={onToggleMobileNav}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted text-muted-foreground"
+              aria-label={mobileNavOpen ? "Đóng menu" : "Mở menu"}
+            >
+              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          )}
+          <span className="font-semibold truncate">Smart Canteen</span>
+        </div>
+
+        {/* Desktop: search inline */}
+        <div className="relative w-96 hidden md:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search for food, drinks..."
+            className="pl-10 bg-muted/50 border-0"
+          />
+        </div>
+
+        {/* Right Side */}
+        <div className="flex items-center gap-2 sm:gap-4">
         {/* Cart */}
         <Link to="/student/cart" className="relative p-2 rounded-lg hover:bg-muted transition-colors">
           <ShoppingCart className="w-5 h-5 text-muted-foreground" />
@@ -254,7 +274,7 @@ export function StudentHeader({
                 <AvatarImage src={profile?.avatarUrl ?? undefined} />
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
-              <div className="text-left">
+              <div className="text-left hidden sm:block">
                 <p className="text-sm font-medium leading-4">{resolvedName}</p>
                 <p className="text-xs text-primary leading-4">{resolvedRole}</p>
               </div>
@@ -263,7 +283,7 @@ export function StudentHeader({
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Tài khoảng</DropdownMenuLabel>
+            <DropdownMenuLabel>Tài khoản</DropdownMenuLabel>
             <DropdownMenuSeparator />
 
             <DropdownMenuItem asChild>
@@ -299,6 +319,13 @@ export function StudentHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Mobile: search on second row */}
+      <div className="relative w-full mt-3 md:hidden">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input type="text" placeholder="Search for food, drinks..." className="pl-10 bg-muted/50 border-0" />
       </div>
     </header>
   );

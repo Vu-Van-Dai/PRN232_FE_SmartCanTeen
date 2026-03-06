@@ -107,10 +107,6 @@ export default function MenuManagementReadOnly() {
             )}
           </tbody>
         </table>
-
-        <div className="p-4 border-t border-border flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Showing {filteredItems.length} item(s)</p>
-        </div>
       </div>
     </div>
   );

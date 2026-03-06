@@ -712,7 +712,7 @@ export default function ManagerReportsPage() {
       </Dialog>
 
       <Dialog open={salesOpen} onOpenChange={setSalesOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Biểu mẫu số lượng bán ra</DialogTitle>
             <DialogDescription>
@@ -760,24 +760,25 @@ export default function ManagerReportsPage() {
               </div>
 
               <div className="rounded-lg border">
-                <ScrollArea className="h-[520px]">
-                  <Table>
+                <div className="w-full overflow-x-hidden">
+                  <ScrollArea className="h-[60vh] min-h-[260px] overflow-x-hidden">
+                    <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[180px]">Mã món</TableHead>
-                        <TableHead>Tên món</TableHead>
-                        <TableHead className="text-right w-[140px]">Số lượng</TableHead>
-                        <TableHead className="text-right w-[180px]">Giá gốc</TableHead>
-                        <TableHead className="text-right w-[160px]">Discount</TableHead>
-                        <TableHead className="text-right w-[160px]">VAT</TableHead>
-                        <TableHead className="text-right w-[180px]">Toàn bộ</TableHead>
+                        <TableHead className="w-[90px]">Mã</TableHead>
+                        <TableHead className="w-[220px]">Tên món</TableHead>
+                        <TableHead className="text-right w-[80px]">SL</TableHead>
+                        <TableHead className="text-right w-[110px]">Giá gốc</TableHead>
+                        <TableHead className="text-right w-[90px]">Discount</TableHead>
+                        <TableHead className="text-right w-[90px]">VAT</TableHead>
+                        <TableHead className="text-right w-[110px]">Toàn bộ</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {salesQuery.data.items.map((it) => (
                         <TableRow key={it.itemId}>
-                          <TableCell className="font-mono text-xs">{String(it.itemId).slice(0, 8)}</TableCell>
-                          <TableCell className="font-medium">{it.name}</TableCell>
+                          <TableCell className="font-mono text-xs truncate">{String(it.itemId).slice(0, 8)}</TableCell>
+                          <TableCell className="font-medium truncate">{it.name}</TableCell>
                           <TableCell className="text-right">{it.quantity}</TableCell>
                           <TableCell className="text-right">{formatVnd(it.grossAmount)}</TableCell>
                           <TableCell className="text-right">{formatVnd(it.discountAmount)}</TableCell>
@@ -793,8 +794,9 @@ export default function ManagerReportsPage() {
                         </TableRow>
                       )}
                     </TableBody>
-                  </Table>
-                </ScrollArea>
+                    </Table>
+                  </ScrollArea>
+                </div>
               </div>
             </div>
           )}

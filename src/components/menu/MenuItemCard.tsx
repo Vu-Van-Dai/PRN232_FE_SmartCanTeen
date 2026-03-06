@@ -64,7 +64,7 @@ export function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
         />
         
         {/* Status Badge */}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
           {getStatusBadge()}
         </div>
         
@@ -79,15 +79,15 @@ export function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
       </div>
       
       {/* Content */}
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-semibold text-base leading-tight">{item.name}</h3>
-          <span className="text-sm font-bold border border-border rounded-lg px-2 py-1">
+      <div className="p-3 sm:p-4">
+        <div className="mb-2">
+          <h3 className="font-semibold text-sm sm:text-base leading-snug line-clamp-2">{item.name}</h3>
+          <span className="inline-block mt-1 text-xs sm:text-sm font-bold border border-border rounded-lg px-2 py-1 whitespace-nowrap">
             {formatVND(item.price)}
           </span>
         </div>
-        
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+
+        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1 sm:line-clamp-2 mb-3 sm:mb-4">
           {item.description}
         </p>
         
@@ -95,7 +95,7 @@ export function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
           onClick={() => onAddToCart(item)}
           disabled={item.status === "sold_out"}
           variant={item.status === "sold_out" ? "outline" : "default"}
-          className="w-full gap-2"
+          className="w-full gap-2 text-xs sm:text-sm"
           size="sm"
         >
           <ShoppingCart className="w-4 h-4" />

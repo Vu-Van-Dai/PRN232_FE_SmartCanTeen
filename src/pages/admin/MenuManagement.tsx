@@ -422,15 +422,11 @@ export default function MenuManagement() {
             )}
           </tbody>
         </table>
-        
-        {/* Pagination */}
-        <div className="p-4 border-t border-border flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Showing {filteredItems.length} item(s)</p>
-        </div>
+
       </div>
 
       <Dialog open={restockOpen} onOpenChange={setRestockOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Thêm tồn kho</DialogTitle>
             <DialogDescription>
@@ -490,7 +486,7 @@ export default function MenuManagement() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editMode === "create" ? "Thêm món ăn" : "Chỉnh sửa món ăn"}</DialogTitle>
             <DialogDescription>
