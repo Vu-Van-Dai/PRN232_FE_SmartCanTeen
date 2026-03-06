@@ -181,7 +181,7 @@ export default function StudentWallet() {
             Nhập số tiền để tạo mã QR thanh toán.
           </p>
           
-          <div className="flex gap-2 mb-4">
+          <div className="grid grid-cols-3 gap-2 mb-4">
             {topUpAmounts.map((amount) => (
               <button
                 key={amount}
@@ -190,7 +190,7 @@ export default function StudentWallet() {
                   setCustomAmount(String(amount));
                 }}
                 className={cn(
-                  "flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors",
+                  "flex-1 py-2 px-3 sm:px-4 rounded-lg border text-xs sm:text-sm font-medium transition-colors",
                   selectedAmount === amount 
                     ? "border-primary bg-primary/5 text-primary" 
                     : "border-border hover:bg-muted"
@@ -210,7 +210,7 @@ export default function StudentWallet() {
             />
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Button
               className="flex-1 gap-2"
               disabled={!Number.isFinite(parsedAmount) || parsedAmount <= 0 || topupMutation.isPending}
@@ -226,7 +226,7 @@ export default function StudentWallet() {
               <QrCodeIcon className="w-4 h-4" />
             </Button>
             
-            <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
+            <div className="w-full sm:w-24 h-24 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
               <div className="text-center text-xs text-muted-foreground">
                 <QrCodeIcon className="w-8 h-8 mx-auto mb-1 opacity-30" />
                 <p>QR Code</p>
@@ -295,7 +295,10 @@ export default function StudentWallet() {
               const ref = tx.orderId ? `#ORD-${shortId(tx.orderId)}` : `#TX-${shortId(tx.id)}`;
 
               return (
-                <div key={tx.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div
+                  key={tx.id}
+                  className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border p-3"
+                >
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{desc}</p>

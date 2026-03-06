@@ -85,8 +85,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div 
-      className="min-h-screen flex flex-col items-center justify-center p-4"
+    <div
+      className="relative h-dvh overflow-hidden flex items-center justify-center p-4"
       style={{
         backgroundImage: "linear-gradient(135deg, rgba(79, 70, 229, 0.3) 0%, rgba(249, 115, 22, 0.3) 100%), url('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=1920&q=80')",
         backgroundSize: "cover",
@@ -95,7 +95,7 @@ export default function LoginPage() {
     >
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-transparent to-orange-900/40" />
       
-      <div className="relative bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
+      <div className="relative bg-white rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-6">
           <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
@@ -112,15 +112,15 @@ export default function LoginPage() {
         </div>
 
         {/* Welcome Text */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h1>
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h1>
           <p className="text-gray-500">
            Nạp năng lượng cho ngày mới. Đăng nhập để truy cập tài khoản canteen của bạn.
           </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
           <div>
             <label className="block text-sm font-semibold text-indigo-600 mb-2">
               Email
@@ -132,7 +132,7 @@ export default function LoginPage() {
                 placeholder="e.g. student@school.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-14 pl-12 bg-gray-50 border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400"
+                className="h-12 sm:h-14 pl-12 bg-gray-50 border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400"
               />
             </div>
           </div>
@@ -148,7 +148,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-14 pl-12 pr-12 bg-gray-50 border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400"
+                className="h-12 sm:h-14 pl-12 pr-12 bg-gray-50 border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400"
               />
               <button
                 type="button"
@@ -197,18 +197,7 @@ export default function LoginPage() {
           </div>
           <span className="text-gray-700 font-medium">Đăng nhập bằng tài khoản trường</span>
         </Button>
-
-        {/* Footer */}
-        <div className="flex items-center justify-center gap-4 mt-6 text-sm text-gray-500">
-          <a href="#" className="hover:text-gray-700">Support</a>
-          <a href="#" className="hover:text-gray-700">Privacy Policy</a>
-        </div>
       </div>
-
-      {/* Bottom Copyright */}
-      <p className="relative mt-6 text-sm text-white/80">
-        © 2023 CanteenPlus Systems
-      </p>
     </div>
   );
 }

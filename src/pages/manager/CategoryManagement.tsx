@@ -215,10 +215,6 @@ export default function CategoryManagement() {
             )}
           </tbody>
         </table>
-
-        <div className="p-4 border-t border-border flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Showing {filtered.length} category(ies)</p>
-        </div>
       </div>
 
       <Dialog

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Eye, LogOut, Save } from "lucide-react";
+import { Camera, ChevronDown, Eye, LogOut, Save, Shield } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { authApi, usersApi, walletApi } from "@/lib/api";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
@@ -25,6 +26,7 @@ export default function StudentProfile() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [securityOpen, setSecurityOpen] = useState(false);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["users", "me"],
@@ -102,11 +104,11 @@ export default function StudentProfile() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Hồ sơ</h1>
         <Button
           variant="destructive"
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
           onClick={() => {
             logout();
             navigate("/auth/login", { replace: true });
@@ -127,9 +129,9 @@ export default function StudentProfile() {
 
       {/* Account Info (read-only) */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Thông tin tài khoản</CardTitle>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {(profile?.roles ?? user?.roles ?? []).map((r) => (
               <Badge key={r} variant="secondary">
                 {r}
@@ -152,7 +154,7 @@ export default function StudentProfile() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="gap-2"
+                    className="gap-2 w-full sm:w-auto"
                     onClick={handlePickAvatar}
                     disabled={isUploadingAvatar || patchProfile.isPending}
                   >
@@ -187,9 +189,9 @@ export default function StudentProfile() {
 
       {/* Wallet snapshot */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Tổng quan ví</CardTitle>
-          <Button asChild variant="outline" size="sm" className="gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2 w-full sm:w-auto">
             <Link to="/student/wallet">
               <Eye className="h-4 w-4" />
               Xem ví
@@ -197,7 +199,7 @@ export default function StudentProfile() {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">Số dư hiện tại</p>
             <p className="text-sm font-semibold">{typeof walletMe?.balance === "number" ? formatVND(walletMe.balance) : "—"}</p>
           </div>
@@ -209,7 +211,7 @@ export default function StudentProfile() {
         <CardHeader>
           <CardTitle>Thông báo</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-between">
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium">Order ready</p>
             <p className="text-xs text-muted-foreground">Bật để nhận thông báo khi món đã sẵn sàng.</p>
@@ -233,77 +235,104 @@ export default function StudentProfile() {
       </Card>
 
       {/* Security */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Bảo mật</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <Collapsible
+        open={securityOpen}
+        onOpenChange={(open) => {
+          setSecurityOpen(open);
+          if (!open) {
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+          }
+        }}
+      >
+        <Card>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                className="mt-2"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
+              <CardTitle>Bảo mật</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">Đổi mật khẩu tài khoản của bạn.</p>
             </div>
-            <div>
-              <Label htmlFor="newPassword">Mật khẩu mới</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                className="mt-2"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                className="mt-2"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
+            <CollapsibleTrigger asChild>
+              <Button variant={securityOpen ? "secondary" : "outline"} className="gap-2 w-full sm:w-auto">
+                <Shield className="h-4 w-4" />
+                {securityOpen ? "Đóng" : "Đổi mật khẩu"}
+                <ChevronDown className={"h-4 w-4 transition-transform " + (securityOpen ? "rotate-180" : "")}
+                />
+              </Button>
+            </CollapsibleTrigger>
+          </CardHeader>
 
-          <div className="mt-4 flex justify-end">
-            <Button
-              type="button"
-              className="gap-2"
-              disabled={changePassword.isPending}
-              onClick={async () => {
-                if (!currentPassword || !newPassword) {
-                  toast({ title: "Thiếu thông tin", description: "Vui lòng nhập đủ mật khẩu.", variant: "destructive" });
-                  return;
-                }
-                if (newPassword !== confirmPassword) {
-                  toast({ title: "Không khớp", description: "Mật khẩu xác nhận không khớp.", variant: "destructive" });
-                  return;
-                }
+          <CollapsibleContent>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    className="mt-2"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newPassword">Mật khẩu mới</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    className="mt-2"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    className="mt-2"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+              </div>
 
-                try {
-                  await changePassword.mutateAsync({ currentPassword, newPassword });
-                  setCurrentPassword("");
-                  setNewPassword("");
-                  setConfirmPassword("");
-                  toast({ title: "Đổi mật khẩu thành công" });
-                } catch (err) {
-                  const msg = err instanceof Error ? err.message : "Đổi mật khẩu thất bại";
-                  toast({ title: "Đổi mật khẩu thất bại", description: msg, variant: "destructive" });
-                }
-              }}
-            >
-              <Save className="h-4 w-4" />
-              Đổi mật khẩu
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              <div className="mt-4 flex justify-end">
+                <Button
+                  type="button"
+                  className="gap-2 w-full sm:w-auto"
+                  disabled={changePassword.isPending}
+                  onClick={async () => {
+                    if (!currentPassword || !newPassword) {
+                      toast({ title: "Thiếu thông tin", description: "Vui lòng nhập đủ mật khẩu.", variant: "destructive" });
+                      return;
+                    }
+                    if (newPassword !== confirmPassword) {
+                      toast({ title: "Không khớp", description: "Mật khẩu xác nhận không khớp.", variant: "destructive" });
+                      return;
+                    }
+
+                    try {
+                      await changePassword.mutateAsync({ currentPassword, newPassword });
+                      setCurrentPassword("");
+                      setNewPassword("");
+                      setConfirmPassword("");
+                      setSecurityOpen(false);
+                      toast({ title: "Đổi mật khẩu thành công" });
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : "Đổi mật khẩu thất bại";
+                      toast({ title: "Đổi mật khẩu thất bại", description: msg, variant: "destructive" });
+                    }
+                  }}
+                >
+                  <Save className="h-4 w-4" />
+                  Cập nhật mật khẩu
+                </Button>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   );
 }

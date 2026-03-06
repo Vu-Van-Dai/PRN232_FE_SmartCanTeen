@@ -67,6 +67,8 @@ export default function ParentChildSpending() {
     retry: false,
   });
 
+  const noChildren = children.length === 0;
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SELECTED_CHILD_KEY);
@@ -118,15 +120,6 @@ export default function ParentChildSpending() {
     retry: false,
   });
 
-  if (!children.length) {
-    return (
-      <div className="space-y-3">
-        <h1 className="text-2xl font-bold">Chi tiêu của con</h1>
-        <p className="text-muted-foreground">Bạn chưa liên kết học sinh. Vào mục “Liên kết & hồ sơ” để liên kết.</p>
-      </div>
-    );
-  }
-
   const balance = wallet?.balance ?? 0;
 
   useEffect(() => {
@@ -172,9 +165,18 @@ export default function ParentChildSpending() {
     },
   });
 
+  if (noChildren) {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-2xl font-bold">Chi tiêu của con</h1>
+        <p className="text-muted-foreground">Bạn chưa liên kết học sinh. Vào mục “Liên kết & hồ sơ” để liên kết.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Chi tiêu của con</h1>
           <p className="text-sm text-muted-foreground">{selectedChild ? `Học sinh: ${selectedChild.name ?? selectedChild.email}` : ""}</p>
@@ -190,7 +192,7 @@ export default function ParentChildSpending() {
             }
           }}
         >
-          <SelectTrigger className="w-72">
+          <SelectTrigger className="w-full sm:w-72">
             <SelectValue placeholder="Chọn học sinh" />
           </SelectTrigger>
           <SelectContent>
@@ -213,7 +215,7 @@ export default function ParentChildSpending() {
         <h3 className="font-semibold text-lg mb-1">Nạp tiền vào ví của con</h3>
         <p className="text-sm text-muted-foreground mb-4">Nhập số tiền để tạo yêu cầu thanh toán.</p>
 
-        <div className="flex gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           {topUpAmounts.map((amount) => (
             <button
               key={amount}
@@ -222,7 +224,7 @@ export default function ParentChildSpending() {
                 setCustomAmount(String(amount));
               }}
               className={cn(
-                "flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors",
+                "flex-1 py-2 px-3 sm:px-4 rounded-lg border text-xs sm:text-sm font-medium transition-colors",
                 selectedAmount === amount
                   ? "border-primary bg-primary/5 text-primary"
                   : "border-border hover:bg-muted"
@@ -233,8 +235,11 @@ export default function ParentChildSpending() {
           ))}
         </div>
 
-        <div className="flex gap-2">
-          <Input value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} />
+        <div className="grid grid-cols-[1fr_auto] gap-2 items-stretch">
+          <div className="relative">
+            <Input value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} className="pr-14" />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">VND</span>
+          </div>
           <Button
             disabled={
               !wallet?.walletId ||
@@ -254,6 +259,7 @@ export default function ParentChildSpending() {
               }
               topupMutation.mutate(parsedAmount);
             }}
+            className="whitespace-nowrap"
           >
             Nạp tiền
           </Button>
@@ -317,7 +323,10 @@ export default function ParentChildSpending() {
               const ref = tx.orderId ? `#ORD-${shortId(tx.orderId)}` : `#TX-${shortId(tx.id)}`;
 
               return (
-                <div key={tx.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div
+                  key={tx.id}
+                  className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border p-3"
+                >
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{desc}</p>

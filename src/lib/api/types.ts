@@ -63,6 +63,14 @@ export type MenuItemResponse = {
   xmin?: number;
 };
 
+export type TopSellingMenuItemResponse = {
+  id: Guid;
+  name: string;
+  price: number;
+  imageUrl?: string | null;
+  quantity: number;
+};
+
 export type CreateMenuItemRequest = {
   categoryId: Guid;
   name: string;

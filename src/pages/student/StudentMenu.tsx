@@ -89,8 +89,8 @@ export default function StudentMenu() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-1">
+      <div className="mb-4 md:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-1">
           {greeting.text}, {resolvedName}! {greeting.emoji}
         </h1>
         <p className="text-muted-foreground">
@@ -107,7 +107,7 @@ export default function StudentMenu() {
       )}
       
       {/* Menu Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
         {filtered.map((item) => (
           <MenuItemCard 
             key={item.id} 

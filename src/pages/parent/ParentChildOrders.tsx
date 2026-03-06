@@ -149,7 +149,7 @@ export default function ParentChildOrders() {
   if (activeOrders.length === 0 && historicalOrders.length === 0) {
     return (
       <div className="space-y-6 max-w-4xl">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Đơn hàng của con</h1>
             <p className="text-sm text-muted-foreground">{selectedChild ? `Học sinh: ${selectedChild.name ?? selectedChild.email}` : ""}</p>
@@ -165,7 +165,7 @@ export default function ParentChildOrders() {
               }
             }}
           >
-            <SelectTrigger className="w-72">
+            <SelectTrigger className="w-full sm:w-72">
               <SelectValue placeholder="Chọn học sinh" />
             </SelectTrigger>
             <SelectContent>
@@ -191,7 +191,7 @@ export default function ParentChildOrders() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Đơn hàng của con</h1>
           <p className="text-sm text-muted-foreground">{selectedChild ? `Học sinh: ${selectedChild.name ?? selectedChild.email}` : ""}</p>
@@ -207,7 +207,7 @@ export default function ParentChildOrders() {
             }
           }}
         >
-          <SelectTrigger className="w-72">
+          <SelectTrigger className="w-full sm:w-72">
             <SelectValue placeholder="Chọn học sinh" />
           </SelectTrigger>
           <SelectContent>

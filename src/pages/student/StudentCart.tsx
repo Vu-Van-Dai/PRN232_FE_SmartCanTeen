@@ -221,8 +221,8 @@ export default function StudentCart() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+    <div className="max-w-6xl mx-auto pb-24 lg:pb-0">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-6">
         <Link to="/student/home" className="hover:text-foreground">
           Trang Chủ
         </Link>
@@ -234,7 +234,7 @@ export default function StudentCart() {
         <span className="text-foreground">Giỏ Hàng</span>
       </div>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h1 className="text-3xl font-bold">Giỏ Hàng</h1>
         <span className="text-primary font-medium">{itemLabel}</span>
       </div>
@@ -260,38 +260,38 @@ export default function StudentCart() {
                   )}
                 </div>
 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-semibold">{item.name}</h3>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold truncate">{item.name}</h3>
                       {!!item.description && (
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
+                        <p className="text-sm text-muted-foreground truncate">{item.description}</p>
                       )}
                     </div>
                     <button
                       onClick={() => cart.removeItem(item.id)}
-                      className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                      className="p-3 sm:p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                       aria-label="Remove item"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between mt-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-3">
                     <p className="font-semibold">{formatVND(item.price)}</p>
 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => cart.setQuantity(item.id, Math.max(1, item.quantity - 1))}
-                        className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                        className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
                         aria-label="Decrease quantity"
                       >
                         <Minus className="w-4 h-4" />
                       </button>
-                      <span className="w-8 text-center font-medium">{item.quantity}</span>
+                      <span className="w-10 sm:w-8 text-center font-medium">{item.quantity}</span>
                       <button
                         onClick={() => cart.setQuantity(item.id, item.quantity + 1)}
-                        className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
+                        className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
                         aria-label="Increase quantity"
                       >
                         <Plus className="w-4 h-4" />
@@ -456,6 +456,25 @@ export default function StudentCart() {
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile sticky action (one-handed) */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-border bg-background/90 backdrop-blur"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
+      >
+        <div className="max-w-6xl mx-auto px-4 pt-3">
+          <Button
+            className="w-full gap-2"
+            size="lg"
+            onClick={handlePlaceOrder}
+            disabled={cart.lines.length === 0}
+          >
+            Đặt Hàng
+            <span className="ml-2 px-2 py-0.5 bg-primary-foreground/20 rounded text-xs">{formatVND(total)}</span>
+            <ArrowRight className="w-4 h-4" />
+          </Button>
         </div>
       </div>
     </div>
