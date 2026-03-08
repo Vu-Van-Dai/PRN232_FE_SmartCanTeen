@@ -1,5 +1,6 @@
 import { ChevronRight, Star, UtensilsCrossed, Grid3X3, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PwaInstallBanner } from "@/components/layout/PwaInstallBanner";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { categoriesApi, menuItemsApi } from "@/lib/api";
@@ -63,6 +64,8 @@ export default function StudentHome() {
             className="w-full h-40 sm:h-56 md:h-72 object-cover"
           />
         </div>
+
+        <PwaInstallBanner />
 
         {/* Quick Order + Meal of the Day */}
         <div className="bg-white rounded-2xl p-6 shadow-sm mb-8">

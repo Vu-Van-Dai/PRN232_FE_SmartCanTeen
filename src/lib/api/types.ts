@@ -83,6 +83,7 @@ export type CreateMenuItemRequest = {
 };
 
 export type UpdateMenuItemRequest = {
+  categoryId?: Guid;
   name: string;
   price: number;
   productType?: ProductType;
