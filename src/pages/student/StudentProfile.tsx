@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { authApi, usersApi, walletApi } from "@/lib/api";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { ensureOrderReadyWebPushRegistered } from "@/lib/fcm";
 
 export default function StudentProfile() {
   const { user, logout } = useAuth();
@@ -222,6 +223,16 @@ export default function StudentProfile() {
               patchProfile.mutate(
                 { orderReadyNotificationsEnabled: checked },
                 {
+                  onSuccess: async () => {
+                    if (!checked) return;
+                    try {
+                      await ensureOrderReadyWebPushRegistered();
+                      toast({ title: "Đã bật Web Push", description: "Bạn sẽ nhận thông báo khi đơn sẵn sàng." });
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : "Không thể đăng ký Web Push";
+                      toast({ title: "Bật Web Push thất bại", description: msg, variant: "destructive" });
+                    }
+                  },
                   onError: (err) => {
                     const msg = err instanceof Error ? err.message : "Update failed";
                     toast({ title: "Cập nhật thất bại", description: msg, variant: "destructive" });
