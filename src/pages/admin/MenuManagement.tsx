@@ -264,6 +264,7 @@ export default function MenuManagement() {
       await updateMutation.mutateAsync({
         id: editingItem.id,
         body: {
+          categoryId: formCategoryId,
           name,
           price,
           productType: formProductType,
