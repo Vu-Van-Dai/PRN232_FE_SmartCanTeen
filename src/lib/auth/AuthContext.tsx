@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { authApi } from "@/lib/api";
+import { ensureOrderReadyWebPushRegistered, startFcmForegroundNotifications } from "@/lib/fcm";
 import {
   decodeJwtPayload,
   getJwtEmail,
@@ -98,6 +99,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   });
 
+  const tryRegisterWebPush = () => {
+    void (async () => {
+      try {
+        if (typeof window === "undefined" || !("Notification" in window)) return;
+        if (Notification.permission === "denied") return;
+
+        // Defer a tick to ensure token/storage is ready.
+        await new Promise((r) => setTimeout(r, 50));
+
+        await ensureOrderReadyWebPushRegistered();
+      } catch (e) {
+        console.warn("Web Push registration skipped", e);
+      }
+    })();
+  };
+
+  // After reload: if already authenticated and permission granted, enable foreground listener
+  // and refresh token registration (no permission prompt).
+  useEffect(() => {
+    if (!state.accessToken) return;
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+
+    void startFcmForegroundNotifications();
+
+    // Keep token fresh in the background.
+    tryRegisterWebPush();
+  }, [state.accessToken]);
+
   const value = useMemo<AuthContextValue>(() => {
     const isAuthenticated = !!state.accessToken && !isExpired(state.accessToken, state.expiredAt);
 
@@ -112,6 +142,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user: buildUser(res.accessToken),
         };
         setState(next);
+
+        // Ask notification permission & register FCM token right after login.
+        // Runs in background; does not block login UX.
+        tryRegisterWebPush();
+
         return next;
       },
       logout: () => {

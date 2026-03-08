@@ -11,3 +11,10 @@ export async function patchMe(request: UpdateMeProfileRequest): Promise<void> {
     body: request,
   });
 }
+
+export async function registerFcmToken(token: string): Promise<void> {
+  await apiRequest<void>("/api/users/me/fcm-token", {
+    method: "POST",
+    body: { token },
+  });
+}
