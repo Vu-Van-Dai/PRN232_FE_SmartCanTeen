@@ -7,7 +7,7 @@ export function getMyWallet() {
 
 // Student/Parent tự nạp ví của mình
 export function topupMyWallet(amount: number) {
-  return apiRequest<{ paymentUrl: string }>("/api/wallet/topup", {
+  return apiRequest<{ paymentUrl: string; qrCode?: string | null; checkoutUrl?: string }>("/api/wallet/topup", {
     method: "POST",
     query: { amount },
   });
@@ -25,7 +25,7 @@ export function getMyWalletTransactions(params?: { skip?: number; take?: number 
 
 // Parent nạp ví con
 export function topupChildWallet(walletId: Guid, amount: number) {
-  return apiRequest<{ qrUrl: string }>(`/api/wallets/${walletId}/topup`, {
+  return apiRequest<{ qrUrl: string; qrCode?: string | null; checkoutUrl?: string }>(`/api/wallets/${walletId}/topup`, {
     method: "POST",
     query: { amount },
   });

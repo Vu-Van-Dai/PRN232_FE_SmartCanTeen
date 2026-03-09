@@ -91,7 +91,7 @@ export default function StudentWallet() {
   const topupMutation = useMutation({
     mutationFn: (amount: number) => walletApi.topupMyWallet(amount),
     onSuccess: (res) => {
-      const url = res?.paymentUrl;
+      const url = res?.qrCode ?? res?.paymentUrl ?? res?.checkoutUrl;
       if (!url) {
         toast({
           title: "Tạo yêu cầu nạp tiền thất bại",
