@@ -148,7 +148,7 @@ export default function ParentChildSpending() {
       return walletApi.topupChildWallet(wallet.walletId, amount);
     },
     onSuccess: async (res) => {
-      const url = res?.qrUrl;
+      const url = res?.qrCode ?? res?.qrUrl ?? res?.checkoutUrl;
       if (!url) {
         toast({ title: "Tạo yêu cầu nạp tiền thất bại", description: "Thiếu thông tin QR từ hệ thống.", variant: "destructive" });
         return;
