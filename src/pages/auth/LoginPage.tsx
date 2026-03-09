@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getDefaultPathForRoles, hasAnyRole } from "@/lib/auth/role-routing";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { getFirebaseApp } from "@/lib/firebase";
+import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -87,10 +88,10 @@ export default function LoginPage() {
   };
 
   const handleSchoolSso = async () => {
+    const fbAuth = getAuth(getFirebaseApp());
     try {
       setIsSubmitting(true);
 
-      const fbAuth = getAuth(getFirebaseApp());
       const provider = new GoogleAuthProvider();
 
       const result = await signInWithPopup(fbAuth, provider);
@@ -114,6 +115,21 @@ export default function LoginPage() {
 
       navigate(getDefaultPathForRoles(roles), { replace: true });
     } catch (err) {
+      if (err instanceof ApiError && (err.message === "USER_NOT_FOUND" || err.message === "Account not found")) {
+        try {
+          await signOut(fbAuth);
+        } catch {
+          // ignore
+        }
+
+        toast({
+          title: "Không thể đăng nhập",
+          description: "Bạn không thuộc hệ thống hoặc chưa được admin tạo tài khoản.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const code =
         err && typeof err === "object" && "code" in err && typeof (err as { code?: unknown }).code === "string"
           ? (err as { code: string }).code
