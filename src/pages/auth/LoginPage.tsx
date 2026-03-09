@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getDefaultPathForRoles, hasAnyRole } from "@/lib/auth/role-routing";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getFirebaseApp } from "@/lib/firebase";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -74,6 +76,60 @@ export default function LoginPage() {
       navigate(target, { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Đăng nhập thất bại";
+      toast({
+        title: "Đăng nhập thất bại",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSchoolSso = async () => {
+    try {
+      setIsSubmitting(true);
+
+      const fbAuth = getAuth(getFirebaseApp());
+      const provider = new GoogleAuthProvider();
+
+      const result = await signInWithPopup(fbAuth, provider);
+      const firebaseIdToken = await result.user.getIdToken();
+
+      const next = await auth.loginWithGoogle(firebaseIdToken);
+      const roles = next.user?.roles ?? [];
+
+      const isAdminOrManager = hasAnyRole(roles, ["AdminSystem", "Manager"]);
+      const isStaffSide = hasAnyRole(roles, ["Staff", "StaffPOS", "StaffKitchen"]) && !isAdminOrManager;
+      if (isStaffSide) {
+        auth.logout();
+        toast({
+          title: "Sai cổng đăng nhập",
+          description: "Tài khoản nhân viên vui lòng đăng nhập tại POS để mở ca.",
+          variant: "destructive",
+        });
+        navigate("/auth/pos", { replace: true });
+        return;
+      }
+
+      navigate(getDefaultPathForRoles(roles), { replace: true });
+    } catch (err) {
+      const code =
+        err && typeof err === "object" && "code" in err && typeof (err as { code?: unknown }).code === "string"
+          ? (err as { code: string }).code
+          : null;
+
+      let msg = err instanceof Error ? err.message : "Đăng nhập thất bại";
+      if (code === "auth/configuration-not-found") {
+        msg =
+          "Firebase Auth chưa được cấu hình cho project hiện tại (chưa bật Authentication/Google provider hoặc sai firebaseConfig).";
+      } else if (code === "auth/unauthorized-domain") {
+        msg = "Domain hiện tại chưa được thêm vào Firebase Auth > Authorized domains (thêm 'localhost').";
+      } else if (code === "auth/popup-blocked") {
+        msg = "Trình duyệt đang chặn popup đăng nhập. Hãy cho phép popup rồi thử lại.";
+      } else if (code === "auth/popup-closed-by-user") {
+        msg = "Bạn đã đóng cửa sổ đăng nhập.";
+      }
       toast({
         title: "Đăng nhập thất bại",
         description: msg,
@@ -185,12 +241,8 @@ export default function LoginPage() {
         <Button
           variant="outline"
           className="w-full h-14 gap-3 border-gray-200 rounded-xl hover:bg-gray-50"
-          onClick={() =>
-            toast({
-              title: "Chưa hỗ trợ",
-              description: "Đăng nhập SSO của trường hiện chưa được hỗ trợ. Vui lòng đăng nhập bằng email/mật khẩu.",
-            })
-          }
+          onClick={handleSchoolSso}
+          disabled={isSubmitting}
         >
           <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
             <GraduationCap className="w-4 h-4 text-indigo-600" />

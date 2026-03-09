@@ -12,6 +12,10 @@ export type LoginResponse = {
   expiredAt: string;
 };
 
+export type GoogleLoginRequest = {
+  firebaseIdToken: string;
+};
+
 export type ChangePasswordRequest = {
   currentPassword: string;
   newPassword: string;

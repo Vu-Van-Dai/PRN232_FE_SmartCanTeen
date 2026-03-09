@@ -28,6 +28,7 @@ export type AuthState = {
 type AuthContextValue = AuthState & {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<AuthState>;
+  loginWithGoogle: (firebaseIdToken: string) => Promise<AuthState>;
   logout: () => void;
   reloadFromStorage: () => void;
 };
@@ -145,6 +146,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Ask notification permission & register FCM token right after login.
         // Runs in background; does not block login UX.
+        tryRegisterWebPush();
+
+        return next;
+      },
+      loginWithGoogle: async (firebaseIdToken: string) => {
+        const res = await authApi.loginWithGoogle({ firebaseIdToken });
+        const next: AuthState = {
+          accessToken: res.accessToken,
+          expiredAt: res.expiredAt,
+          user: buildUser(res.accessToken),
+        };
+        setState(next);
+
+        // Ask notification permission & register FCM token right after login.
         tryRegisterWebPush();
 
         return next;
