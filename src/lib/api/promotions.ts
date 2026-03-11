@@ -2,6 +2,8 @@ import { apiRequest } from "./http";
 import type {
   CreatePromotionRequest,
   Guid,
+  PromotionQuoteRequest,
+  PromotionQuoteResponse,
   PromotionResponse,
   UpdatePromotionRequest,
 } from "./types";
@@ -24,4 +26,12 @@ export function updatePromotion(id: Guid, body: UpdatePromotionRequest) {
 
 export function deletePromotion(id: Guid) {
   return apiRequest<void>(`/api/admin/promotions/${id}`, { method: "DELETE" });
+}
+
+// Public: Quote promotions/discounts for a set of items.
+export function quotePromotion(body: PromotionQuoteRequest) {
+  return apiRequest<PromotionQuoteResponse>("/api/promotions/quote", {
+    method: "POST",
+    body,
+  });
 }
