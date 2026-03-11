@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { categoriesApi, menuItemsApi, ordersApi } from "@/lib/api";
+import { categoriesApi, menuItemsApi, ordersApi, promotionsApi } from "@/lib/api";
 import { apiRequest } from "@/lib/api/http";
 import type { CategoryResponse, MenuItemResponse } from "@/lib/api/types";
 
@@ -35,6 +35,7 @@ const POS_DRAFT_STORAGE_KEY = "sc_pos_draft_order_v1";
 type PosDraftOrder = {
   createdAt: string;
   orderItems: Array<OrderItem>;
+  promoCode?: string;
   pendingOrderId?: string;
   pendingPayosOrderCode?: number;
   pendingPayosQrCode?: string;
@@ -164,6 +165,11 @@ export default function POSTerminal() {
     return draft?.orderItems ?? [];
   });
 
+  const [promoCode, setPromoCode] = useState<string>(() => {
+    const draft = loadPosDraftOrder();
+    return typeof draft?.promoCode === "string" ? draft.promoCode : "";
+  });
+
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(() => getPendingOrderIdFromDraft());
   const [pendingPayosOrderCode, setPendingPayosOrderCode] = useState<number | null>(() => getPendingPayosOrderCodeFromDraft());
   const [pendingPayosQrCode, setPendingPayosQrCode] = useState<string | null>(() => getPendingPayosQrCodeFromDraft());
@@ -184,11 +190,12 @@ export default function POSTerminal() {
     savePosDraftOrder({
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       orderItems,
+      promoCode,
       pendingOrderId: pendingOrderId ?? existing?.pendingOrderId,
       pendingPayosOrderCode: pendingPayosOrderCode ?? existing?.pendingPayosOrderCode,
       pendingPayosQrCode: pendingPayosQrCode ?? existing?.pendingPayosQrCode,
     });
-  }, [orderItems, pendingOrderId, pendingPayosOrderCode, pendingPayosQrCode]);
+  }, [orderItems, promoCode, pendingOrderId, pendingPayosOrderCode, pendingPayosQrCode]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -220,10 +227,12 @@ export default function POSTerminal() {
     mutationFn: async () => {
       if (orderItems.length === 0) throw new Error("Chưa có món trong đơn.");
 
-      const totalPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const totalPrice = computedTotal;
+      const code = promoCode.trim();
 
       return ordersApi.createPosOfflineOrder({
         totalPrice,
+        promoCode: code ? code : null,
         items: orderItems.map((i) => ({ itemId: i.id, quantity: i.quantity })),
       });
     },
@@ -249,6 +258,7 @@ export default function POSTerminal() {
       savePosDraftOrder({
         createdAt: new Date().toISOString(),
         orderItems,
+        promoCode,
         pendingOrderId: nextOrderId,
         pendingPayosOrderCode: nextOrderCode ?? undefined,
         pendingPayosQrCode: nextQrCode,
@@ -274,9 +284,11 @@ export default function POSTerminal() {
         return { orderId: pendingOrderId };
       }
 
-      const totalPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const totalPrice = computedTotal;
+      const code = promoCode.trim();
       return ordersApi.createPosOfflineOrderCash({
         totalPrice,
+        promoCode: code ? code : null,
         amountReceived: cashReceived,
         changeAmount: cashChange,
         items: orderItems.map((i) => ({ itemId: i.id, quantity: i.quantity })),
@@ -363,13 +375,61 @@ export default function POSTerminal() {
   };
   
   // Menu prices are VAT-inclusive. Derive VAT portion from total.
-  const total = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = Math.round(total * (0.08 / 1.08));
-  const subtotal = Math.max(0, total - tax);
+  const grossTotal = useMemo(() => {
+    return orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }, [orderItems]);
+
+  const quoteItemsKey = useMemo(() => {
+    return orderItems
+      .map((i) => ({ id: i.id, q: i.quantity }))
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((x) => `${x.id}:${x.q}`)
+      .join("|");
+  }, [orderItems]);
+
+  const normalizedPromoCode = useMemo(() => promoCode.trim(), [promoCode]);
+
+  const promoQuoteQuery = useQuery({
+    queryKey: ["pos", "promotion-quote", quoteItemsKey, normalizedPromoCode.toUpperCase()],
+    queryFn: () =>
+      promotionsApi.quotePromotion({
+        items: orderItems.map((i) => ({ itemId: i.id, quantity: i.quantity })),
+        promoCode: normalizedPromoCode ? normalizedPromoCode : null,
+      }),
+    enabled: orderItems.length > 0,
+    retry: false,
+  });
+
+  const giftedSummary = useMemo(() => {
+    const quoted = promoQuoteQuery.data?.items;
+    if (!quoted || quoted.length === 0) return [] as Array<{ name: string; quantity: number }>;
+
+    const currentQtyById = new Map<string, number>();
+    for (const it of orderItems) currentQtyById.set(it.id, (currentQtyById.get(it.id) ?? 0) + it.quantity);
+
+    const menuById = new Map<string, MenuItemResponse>();
+    for (const m of menuItems) menuById.set(m.id, m);
+
+    const gifted: Array<{ name: string; quantity: number }> = [];
+    for (const q of quoted) {
+      const current = currentQtyById.get(q.itemId) ?? 0;
+      const extra = q.quantity - current;
+      if (extra <= 0) continue;
+      const m = menuById.get(q.itemId);
+      if (!m) continue;
+      gifted.push({ name: m.name, quantity: extra });
+    }
+    return gifted;
+  }, [menuItems, orderItems, promoQuoteQuery.data?.items]);
+
+  const discountAmount = promoQuoteQuery.data?.discountAmount ?? 0;
+  const computedTotal = promoQuoteQuery.data?.total ?? grossTotal;
+  const tax = Math.round(computedTotal * (0.08 / 1.08));
+  const subtotal = Math.max(0, computedTotal - tax);
 
   const [cashDigits, setCashDigits] = useState<string>("");
   const cashReceived = useMemo(() => (cashDigits ? Number(cashDigits) : 0), [cashDigits]);
-  const cashChange = cashReceived - total;
+  const cashChange = cashReceived - computedTotal;
 
   const paymentStatusQuery = useQuery({
     queryKey: ["pos", "payment-status", pendingOrderId],
@@ -546,6 +606,32 @@ export default function POSTerminal() {
         
         {/* Order Summary */}
         <div className="border-t border-border p-4 space-y-2">
+          <div className="space-y-1 pb-2">
+            <Label htmlFor="pos-promo" className="text-xs text-muted-foreground">
+              Mã khuyến mãi
+            </Label>
+            <Input
+              id="pos-promo"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              placeholder="Nhập mã…"
+              autoComplete="off"
+              disabled={orderItems.length === 0}
+            />
+            {promoQuoteQuery.isError && normalizedPromoCode ? (
+              <div className="text-xs text-destructive">{getErrorMessage(promoQuoteQuery.error)}</div>
+            ) : promoQuoteQuery.data?.appliedPromotionName ? (
+              <div className="space-y-0.5 text-xs text-muted-foreground">
+                <div>Áp dụng: {promoQuoteQuery.data.appliedPromotionName}</div>
+                {giftedSummary.length > 0 ? (
+                  <div>
+                    Tặng: {giftedSummary.map((g) => `${g.name} x${g.quantity}`).join(" • ")}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
             <span>{formatVND(subtotal)}</span>
@@ -554,9 +640,15 @@ export default function POSTerminal() {
             <span className="text-muted-foreground">Tax (8%)</span>
             <span>{formatVND(tax)}</span>
           </div>
+          {discountAmount > 0 ? (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Discount</span>
+              <span>-{formatVND(discountAmount)}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between pt-2 border-t border-border">
             <span className="font-medium">Total</span>
-            <span className="font-bold text-xl">{formatVND(total)}</span>
+            <span className="font-bold text-xl">{formatVND(computedTotal)}</span>
           </div>
         </div>
         
@@ -566,7 +658,7 @@ export default function POSTerminal() {
             size="lg"
             className="w-full gap-2"
             onClick={() => setPaymentDialogOpen(true)}
-            disabled={orderItems.length === 0 && !pendingOrderId}
+            disabled={(orderItems.length === 0 && !pendingOrderId) || (promoQuoteQuery.isError && Boolean(normalizedPromoCode))}
           >
             <CreditCard className="h-5 w-5" />
             Thanh toán
@@ -773,7 +865,7 @@ export default function POSTerminal() {
               setLastCashSummary({ received: cashReceived, change: cashChange });
               createCashOrderMutation.mutate();
             }}
-            disabled={createCashOrderMutation.isPending || cashReceived < total || (orderItems.length === 0 && !pendingOrderId)}
+            disabled={createCashOrderMutation.isPending || cashReceived < computedTotal || (orderItems.length === 0 && !pendingOrderId)}
           >
             {createCashOrderMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
           </Button>
@@ -790,7 +882,7 @@ export default function POSTerminal() {
         <DialogHeader>
           <DialogTitle>Quét QR để thanh toán</DialogTitle>
           <DialogDescription>
-            Tổng thanh toán: <span className="font-medium">{formatVND(total)}</span>
+            Tổng thanh toán: <span className="font-medium">{formatVND(computedTotal)}</span>
             {pendingPayosOrderCode ? <span className="block">Mã: {pendingPayosOrderCode}</span> : null}
           </DialogDescription>
         </DialogHeader>

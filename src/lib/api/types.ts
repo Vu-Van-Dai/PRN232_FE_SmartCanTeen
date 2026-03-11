@@ -122,11 +122,15 @@ export type CreateOnlineOrderItem = {
 export type CreateOnlineOrderRequest = {
   pickupTime?: string | null;
   items: CreateOnlineOrderItem[];
+  promoCode?: string | null;
 };
 
 export type CreateOnlineOrderResponse = {
   orderId: Guid;
   total: number;
+  discountAmount?: number;
+  appliedPromotionCode?: string | null;
+  appliedPromotionName?: string | null;
 };
 
 export type CreateOfflineOrderItem = {
@@ -136,6 +140,7 @@ export type CreateOfflineOrderItem = {
 
 export type CreateOfflineOrderRequest = {
   totalPrice: number;
+  promoCode?: string | null;
   amountReceived?: number | null;
   changeAmount?: number | null;
   items: CreateOfflineOrderItem[];
@@ -202,6 +207,30 @@ export type CreateOfflineOrderResponse = {
   checkoutUrl?: string;
   qrCode?: string | null;
   orderCode?: number;
+
+  total?: number;
+  discountAmount?: number;
+  appliedPromotionCode?: string | null;
+  appliedPromotionName?: string | null;
+};
+
+export type PromotionQuoteItem = {
+  itemId: Guid;
+  quantity: number;
+};
+
+export type PromotionQuoteRequest = {
+  items: PromotionQuoteItem[];
+  promoCode?: string | null;
+};
+
+export type PromotionQuoteResponse = {
+  items: PromotionQuoteItem[];
+  grossTotal: number;
+  discountAmount: number;
+  total: number;
+  appliedPromotionCode?: string | null;
+  appliedPromotionName?: string | null;
 };
 
 export type PosPaymentStatusResponse = {

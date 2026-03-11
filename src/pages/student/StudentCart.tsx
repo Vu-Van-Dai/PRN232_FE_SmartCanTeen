@@ -4,16 +4,18 @@ import { ArrowRight, Calendar as CalendarIcon, CheckCircle, Info, Minus, Plus, Q
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { ordersApi, walletApi } from "@/lib/api";
+import { menuItemsApi, ordersApi, promotionsApi, walletApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/http";
 import { useCart } from "@/lib/cart/CartContext";
 import { cn } from "@/lib/utils";
+import type { MenuItemResponse } from "@/lib/api/types";
 
 function formatVND(amount: number) {
   return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
@@ -69,6 +71,7 @@ export default function StudentCart() {
   const navigate = useNavigate();
   const cart = useCart();
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "vnpay">("wallet");
+  const [promoCode, setPromoCode] = useState<string>("");
   const [pickupMode, setPickupMode] = useState<"asap" | "scheduled">("asap");
   const [pickupDate, setPickupDate] = useState<Date | undefined>(undefined);
   const [pickupHour, setPickupHour] = useState<string>("06");
@@ -81,10 +84,67 @@ export default function StudentCart() {
     retry: false,
   });
 
+  const menuItemsQuery = useQuery({
+    queryKey: ["menu-items"],
+    queryFn: menuItemsApi.getMenuItems,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const menuById = useMemo(() => {
+    const map = new Map<string, MenuItemResponse>();
+    for (const m of menuItemsQuery.data ?? []) map.set(m.id, m);
+    return map;
+  }, [menuItemsQuery.data]);
+
+  const baseTotal = cart.subtotal;
+  const normalizedPromoCode = useMemo(() => promoCode.trim(), [promoCode]);
+
+  const quoteItemsKey = useMemo(() => {
+    return cart.lines
+      .map((i) => ({ id: i.id, q: i.quantity }))
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((x) => `${x.id}:${x.q}`)
+      .join("|");
+  }, [cart.lines]);
+
+  const promoQuoteQuery = useQuery({
+    queryKey: ["student", "promotion-quote", quoteItemsKey, normalizedPromoCode.toUpperCase()],
+    queryFn: () =>
+      promotionsApi.quotePromotion({
+        items: cart.lines.map((l) => ({ itemId: l.id, quantity: l.quantity })),
+        promoCode: normalizedPromoCode ? normalizedPromoCode : null,
+      }),
+    enabled: cart.lines.length > 0,
+    retry: false,
+  });
+
+  const discountAmount = promoQuoteQuery.data?.discountAmount ?? 0;
+  const total = promoQuoteQuery.data?.total ?? baseTotal;
+
   // Menu prices are VAT-inclusive. Derive VAT portion from total.
-  const total = cart.subtotal;
   const vat = Math.round(total * (0.08 / 1.08));
   const subtotal = Math.max(0, total - vat);
+
+  const giftedSummary = useMemo(() => {
+    const quoted = promoQuoteQuery.data?.items;
+    if (!quoted || quoted.length === 0) return [] as Array<{ name: string; quantity: number }>;
+
+    const currentQtyById = new Map<string, number>();
+    for (const it of cart.lines) currentQtyById.set(it.id, (currentQtyById.get(it.id) ?? 0) + it.quantity);
+
+    const gifted: Array<{ name: string; quantity: number }> = [];
+    for (const q of quoted) {
+      const current = currentQtyById.get(q.itemId) ?? 0;
+      const extra = q.quantity - current;
+      if (extra <= 0) continue;
+
+      const nameFromMenu = menuById.get(q.itemId)?.name;
+      gifted.push({ name: nameFromMenu ?? "Món tặng", quantity: extra });
+    }
+
+    return gifted;
+  }, [cart.lines, menuById, promoQuoteQuery.data?.items]);
 
   const itemLabel = useMemo(() => {
     const n = cart.itemCount;
@@ -163,6 +223,7 @@ export default function StudentCart() {
 
       const res = await ordersApi.createOnlineOrder({
         pickupTime,
+        promoCode: normalizedPromoCode ? normalizedPromoCode : null,
         items: cart.lines.map((l) => ({ itemId: l.id, quantity: l.quantity })),
       });
 
@@ -308,6 +369,33 @@ export default function StudentCart() {
           <div className="bg-card rounded-xl border border-border p-6">
             <h3 className="font-semibold text-lg mb-4">Tóm Tắt Đơn Hàng</h3>
 
+            <div className="space-y-1 mb-4">
+              <Label htmlFor="student-promo" className="text-xs text-muted-foreground">
+                Mã khuyến mãi
+              </Label>
+              <Input
+                id="student-promo"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                placeholder="Nhập mã…"
+                autoComplete="off"
+                disabled={cart.lines.length === 0}
+              />
+
+              {promoQuoteQuery.isError && normalizedPromoCode ? (
+                <div className="text-xs text-destructive">{String(promoQuoteQuery.error instanceof Error ? promoQuoteQuery.error.message : promoQuoteQuery.error)}</div>
+              ) : promoQuoteQuery.data?.appliedPromotionName ? (
+                <div className="space-y-0.5 text-xs text-muted-foreground">
+                  <div>Áp dụng: {promoQuoteQuery.data.appliedPromotionName}</div>
+                  {giftedSummary.length > 0 ? (
+                    <div>
+                      Tặng: {giftedSummary.map((g) => `${g.name} x${g.quantity}`).join(" • ")}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tạm Tính</span>
@@ -317,6 +405,12 @@ export default function StudentCart() {
                 <span className="text-muted-foreground">Thuế VAT (8%)</span>
                 <span>{formatVND(vat)}</span>
               </div>
+              {discountAmount > 0 ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Khuyến mãi</span>
+                  <span>-{formatVND(discountAmount)}</span>
+                </div>
+              ) : null}
               <div className="border-t border-border pt-3 flex justify-between">
                 <span className="font-medium">Total</span>
                 <span className="font-bold text-xl text-primary">{formatVND(total)}</span>
@@ -450,7 +544,12 @@ export default function StudentCart() {
               </button>
             </div>
 
-            <Button className="w-full gap-2" size="lg" onClick={handlePlaceOrder} disabled={cart.lines.length === 0}>
+            <Button
+              className="w-full gap-2"
+              size="lg"
+              onClick={handlePlaceOrder}
+              disabled={cart.lines.length === 0 || (promoQuoteQuery.isError && Boolean(normalizedPromoCode))}
+            >
               Đặt Hàng
               <span className="ml-2 px-2 py-0.5 bg-primary-foreground/20 rounded text-xs">{formatVND(total)}</span>
               <ArrowRight className="w-4 h-4" />
@@ -469,7 +568,7 @@ export default function StudentCart() {
             className="w-full gap-2"
             size="lg"
             onClick={handlePlaceOrder}
-            disabled={cart.lines.length === 0}
+            disabled={cart.lines.length === 0 || (promoQuoteQuery.isError && Boolean(normalizedPromoCode))}
           >
             Đặt Hàng
             <span className="ml-2 px-2 py-0.5 bg-primary-foreground/20 rounded text-xs">{formatVND(total)}</span>
